@@ -26,7 +26,9 @@ export default function Pricing() {
 
   const subscribe = async (planId: string, isCustom: boolean) => {
     if (isCustom) {
-      toast.info("Contact your AIJE platform administrator for an Enterprise plan quote.");
+      toast.info(
+        "Contact your AIJE platform administrator for an Enterprise plan quote.",
+      );
       return;
     }
     if (!user) {
@@ -35,18 +37,23 @@ export default function Pricing() {
     }
     setPending(planId);
     try {
-      const { data, error } = await supabase.functions.invoke("paystack-initialize", {
-        body: {
-          plan_id: planId,
-          callback_url: `${window.location.origin}/account/billing/callback`,
+      const { data, error } = await supabase.functions.invoke(
+        "paystack-initialize",
+        {
+          body: {
+            plan_id: planId,
+            callback_url: `${window.location.origin}/account/billing/callback`,
+          },
         },
-      });
+      );
       if (error) throw error;
       if (!data?.authorization_url) throw new Error("No checkout URL returned");
       // Non-secret: surfaces whether the backend initialized checkout in live or test mode.
       console.info(`[Paystack] checkout mode: ${data.mode ?? "unknown"}`);
       if (data.mode === "test") {
-        toast.warning("Checkout is running in TEST mode — no real charge will be made.");
+        toast.warning(
+          "Checkout is running in TEST mode \u2014 no real charge will be made.",
+        );
       }
       window.location.href = data.authorization_url;
     } catch (e: unknown) {
@@ -59,7 +66,10 @@ export default function Pricing() {
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="container max-w-6xl flex items-center justify-between py-3">
-          <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="h-4 w-4" /> Back
           </Link>
           <div className="flex items-center gap-2">
@@ -71,11 +81,17 @@ export default function Pricing() {
 
       <main className="container max-w-6xl py-10">
         <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Choose your protection tier</h1>
-          <p className="text-muted-foreground mt-2">Scale from a single site to global enterprise.</p>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+            Choose your protection tier
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Scale from a single site to global enterprise.
+          </p>
           {currentPlan && (
             <Badge variant="secondary" className="mt-4">
-              Current plan: {currentPlan.name} · {sub?.status}
+              Current plan: {currentPlan.name}
+              {" \u00b7 "}
+              {sub?.status}
             </Badge>
           )}
         </div>
@@ -87,27 +103,35 @@ export default function Pricing() {
         ) : (
           <div className="grid gap-6 md:grid-cols-3">
             {plans.map((p) => {
-              const isCurrent = currentPlan?.id === p.id && sub?.status === "active";
+              const isCurrent =
+                currentPlan?.id === p.id && sub?.status === "active";
               const popular = p.code === "growth";
               return (
                 <Card
                   key={p.id}
                   className={cn(
                     "relative p-6 flex flex-col border-border",
-                    popular && "border-primary shadow-[0_0_30px_-10px_hsl(var(--primary))]",
+                    popular &&
+                      "border-primary shadow-[0_0_30px_-10px_hsl(var(--primary))]",
                   )}
                 >
                   {popular && (
-                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">Most popular</Badge>
+                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      Most popular
+                    </Badge>
                   )}
                   <h2 className="text-xl font-semibold">{p.name}</h2>
-                  <p className="text-sm text-muted-foreground mt-1 min-h-[2.5rem]">{p.description}</p>
+                  <p className="text-sm text-muted-foreground mt-1 min-h-[2.5rem]">
+                    {p.description}
+                  </p>
                   <div className="mt-4 mb-4">
                     {p.is_custom ? (
                       <div className="text-3xl font-bold">Custom</div>
                     ) : (
                       <div>
-                        <span className="text-3xl font-bold">{formatNGN(p.price_ngn_kobo)}</span>
+                        <span className="text-3xl font-bold">
+                          {formatNGN(p.price_ngn_kobo)}
+                        </span>
                         <span className="text-muted-foreground"> /month</span>
                       </div>
                     )}
@@ -126,8 +150,14 @@ export default function Pricing() {
                     disabled={isCurrent || pending === p.id}
                     onClick={() => subscribe(p.id, p.is_custom)}
                   >
-                    {pending === p.id && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {isCurrent ? "Current plan" : p.is_custom ? "Contact sales" : "Subscribe"}
+                    {pending === p.id && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    )}
+                    {isCurrent
+                      ? "Current plan"
+                      : p.is_custom
+                        ? "Contact sales"
+                        : "Subscribe"}
                   </Button>
                 </Card>
               );
@@ -136,7 +166,8 @@ export default function Pricing() {
         )}
 
         <p className="text-xs text-muted-foreground text-center mt-8">
-          Payments processed securely via Paystack. NGN charges. You can cancel anytime.
+          Payments processed securely via Paystack. NGN charges. You can cancel
+          anytime.
         </p>
       </main>
     </div>

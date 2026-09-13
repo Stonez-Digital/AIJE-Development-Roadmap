@@ -3,15 +3,21 @@
  * All matching is on-device. Only 128-d descriptors leave the browser
  * (synced to Cloud), never raw images.
  */
-import * as faceapi from "@vladmandic/face-api";
-
 const MODEL_URL = "https://vladmandic.github.io/face-api/model";
 
 let loadPromise: Promise<void> | null = null;
+let faceApiPromise: Promise<typeof import("@vladmandic/face-api")> | null =
+  null;
+
+function loadFaceApi() {
+  faceApiPromise ??= import("@vladmandic/face-api");
+  return faceApiPromise;
+}
 
 export async function ensureFaceModels(): Promise<void> {
   if (loadPromise) return loadPromise;
   loadPromise = (async () => {
+    const faceapi = await loadFaceApi();
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
       faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
@@ -27,6 +33,7 @@ export async function describeFromImage(
   img: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement,
 ): Promise<Descriptor | null> {
   await ensureFaceModels();
+  const faceapi = await loadFaceApi();
   const result = await faceapi
     .detectSingleFace(
       img as HTMLImageElement,
@@ -45,6 +52,7 @@ export async function describeAllFromVideo(
   video: HTMLVideoElement,
 ): Promise<Descriptor[]> {
   await ensureFaceModels();
+  const faceapi = await loadFaceApi();
   const results = await faceapi
     .detectAllFaces(
       video,
