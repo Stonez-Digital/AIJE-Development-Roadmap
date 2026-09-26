@@ -66,6 +66,11 @@ Create or connect a Pages project with these settings:
 - Node.js version: `22`
 - Root directory: the repository root
 
+The current production Pages origin is
+`https://aije-development-roadmap.pages.dev`. Include this exact origin in the
+`ALLOWED_CALLBACK_ORIGINS` Supabase Edge Function secret so Paystack can return
+to `/account/billing/callback`.
+
 Configure these production build variables in Cloudflare Pages:
 
 - `VITE_DEPLOYMENT_ENV=production`
