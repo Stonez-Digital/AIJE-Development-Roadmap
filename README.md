@@ -108,10 +108,12 @@ Collaborators
 Every contributor should:
 
 - Work only on their assigned GitHub Issue.
-- Create a feature branch.
+- Create a feature branch through the GitHub web interface when branch creation
+  is restricted by repository rules.
 - Commit regularly.
 - Open a Pull Request.
-- Wait for review before merging.
+- Wait for the required `verify` check and review before merging. Direct pushes
+  to `main` are intentionally blocked.
 
 ---
 
