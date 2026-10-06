@@ -64,6 +64,7 @@ export interface Incident {
   assignedResponder?: string;
   responseNotes?: string;
   imageUrls?: string[];
+  videoUrls?: string[];
   origin?: "database" | "integration" | "demo";
   operationalUpdatedAt?: string;
   assignedTeamId?: string;
