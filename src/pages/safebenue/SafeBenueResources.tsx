@@ -80,7 +80,7 @@ export default function SafeBenueResources() {
                     <div className="flex flex-wrap gap-1.5">
                       {resource.services.slice(0, 5).map((service) => (
                         <Badge key={service} variant="secondary" className="text-xs">
-                          {service.replaceAll("_", " ")}
+                          {service.replace(/_/g, " ")}
                         </Badge>
                       ))}
                     </div>
