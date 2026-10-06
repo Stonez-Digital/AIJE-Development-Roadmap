@@ -82,6 +82,18 @@ export async function fetchResponseTeams(
   }));
 }
 
+export async function dispatchIncident(input: {
+  incidentId: string;
+  note?: string;
+}): Promise<IncidentReportRow> {
+  const { data, error } = await supabase.rpc("dispatch_incident", {
+    _incident_id: input.incidentId,
+    _note: input.note ?? null,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function assignIncidentTeam(input: {
   incidentId: string;
   teamId: string;
