@@ -17,6 +17,7 @@ interface ResponseTrackingProps {
     note?: string,
   ) => Promise<boolean>;
   mutationState?: IncidentMutationState;
+  onSaved?: () => Promise<void>;
 }
 
 const NEXT_STATUS_LABEL: Record<IncidentStatus, string> = {
@@ -32,8 +33,10 @@ export function ResponseTracking({
   incident,
   onUpdateStatus,
   mutationState,
+  onSaved,
 }: ResponseTrackingProps) {
   const [note, setNote] = useState("");
+  const [dispatchError, setDispatchError] = useState<string | null>(null);
 
   const nextStatus = getNextIncidentStatus(incident.status);
   const requiresTeam = incident.status === "verified";
@@ -42,18 +45,20 @@ export function ResponseTracking({
     if (!nextStatus) return;
 
     if (incident.status === "verified") {
+      setDispatchError(null);
       try {
         await dispatchIncident({
           incidentId: incident.id,
           note: note.trim() || undefined,
         });
         setNote("");
-        return;
-      } catch {
-        // Fall through to the parent mutation path only for non-dispatch
-        // lifecycle states. Dispatch errors are surfaced by the parent UI.
-        return;
+        await onSaved?.();
+      } catch (error) {
+        setDispatchError(
+          error instanceof Error ? error.message : "Dispatch failed.",
+        );
       }
+      return;
     }
 
     const saved = await onUpdateStatus(
@@ -97,6 +102,12 @@ export function ResponseTracking({
             : NEXT_STATUS_LABEL[incident.status]}
         )}
       </Button>
+
+      {dispatchError && (
+        <div role="alert" className="rounded-md border border-destructive/40 p-2 text-xs text-destructive">
+          {dispatchError}
+        </div>
+      )}
 
       {incident.origin !== "database" && (
         <p className="text-xs text-muted-foreground">
