@@ -63,8 +63,8 @@ describe("citizen incident report delivery", () => {
         body: expect.objectContaining({
           id: report.id,
           images: [
-          expect.objectContaining({ dataUrl: report.images?.[0]?.dataUrl }),
-        ],
+            expect.objectContaining({ dataUrl: report.images?.[0]?.dataUrl }),
+          ],
         }),
       }),
     );
