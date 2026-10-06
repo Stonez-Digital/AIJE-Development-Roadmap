@@ -201,9 +201,20 @@ BEGIN
       WHEN 'responding' THEN 'acknowledged'
       WHEN 'resolved' THEN 'responding'
     END,
-    _to_status, NULLIF(trim(_note), ''), audit_action,
-    CASE _to_status THEN '{}'::jsonb
-         ELSE jsonb_build_object('responder_membership_id', actor_membership_id)
+    _to_status,
+    NULLIF(trim(_note), ''),
+    audit_action,
+    CASE _to_status
+      WHEN 'verified' THEN 'pending'
+      WHEN 'acknowledged' THEN 'dispatched'
+      WHEN 'responding' THEN 'acknowledged'
+      WHEN 'resolved' THEN 'responding'
+    END,
+    _to_status,
+    NULLIF(trim(_note), ''),
+    CASE WHEN actor_membership_id IS NULL
+      THEN '{}'::jsonb
+      ELSE jsonb_build_object('responder_membership_id', actor_membership_id)
     END
   );
 
