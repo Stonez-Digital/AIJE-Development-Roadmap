@@ -1,5 +1,6 @@
 // components/ResponseTracking.tsx
 import { useState } from "react";
+import { useAccess } from "@/features/access/AccessProvider";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -37,9 +38,11 @@ export function ResponseTracking({
 }: ResponseTrackingProps) {
   const [note, setNote] = useState("");
   const [dispatchError, setDispatchError] = useState<string | null>(null);
+  const { hasPermission } = useAccess();
 
   const nextStatus = getNextIncidentStatus(incident.status);
   const requiresTeam = incident.status === "verified";
+  const canDispatch = hasPermission("alerts.dispatch");
 
   async function handleAdvanceStatus() {
     if (!nextStatus) return;
@@ -87,7 +90,7 @@ export function ResponseTracking({
         onClick={handleAdvanceStatus}
         disabled={
           !nextStatus ||
-          (requiresTeam && !incident.assignedTeamId) ||
+          (requiresTeam && (!incident.assignedTeamId || !canDispatch)) ||
           mutationState?.phase === "saving" ||
           incident.origin !== "database"
         }
@@ -97,9 +100,11 @@ export function ResponseTracking({
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…
           </>
         ) : (
-          {requiresTeam && !incident.assignedTeamId
-            ? "Assign a response team first"
-            : NEXT_STATUS_LABEL[incident.status]}
+          {requiresTeam && !canDispatch
+            ? "Dispatch permission required"
+            : requiresTeam && !incident.assignedTeamId
+              ? "Assign a response team first"
+              : NEXT_STATUS_LABEL[incident.status]}
         )}
       </Button>
 
