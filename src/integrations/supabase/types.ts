@@ -1353,6 +1353,18 @@ export type Database = {
         Args: { _actor_ids: string[]; _organization_id: string }
         Returns: { display_name: string; user_id: string }[]
       }
+      get_response_team_roster: {
+        Args: { _organization_id: string }
+        Returns: {
+          team_id: string
+          team_name: string
+          team_type: string
+          membership_id: string | null
+          user_id: string | null
+          display_name: string
+          membership_status: string | null
+        }[]
+      }
       purge_face_audit: { Args: never; Returns: number }
       transition_incident: {
         Args: {
@@ -1372,6 +1384,7 @@ export type Database = {
         | "system"
         | "auth"
       notification_priority: "low" | "normal" | "high" | "critical"
+      membership_status: "invited" | "active" | "suspended"
     }
     CompositeTypes: {
       [_ in never]: never

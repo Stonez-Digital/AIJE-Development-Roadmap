@@ -49,6 +49,8 @@ import { IncidentAuditHistory } from "@/components/IncidentAuditHistory";
 import { IncidentTeamAssignment } from "@/components/IncidentTeamAssignment";
 import { OperationalRiskPanel } from "@/components/OperationalRiskPanel";
 import { SyncStatusPanel } from "@/components/SyncStatusPanel";
+import { EmergencyTeamsPanel } from "@/components/EmergencyTeamsPanel";
+import { DispatchReportPanel } from "@/components/DispatchReportPanel";
 
 function formatIntegrationState(state: string | undefined): string {
   if (!state) {
@@ -317,6 +319,8 @@ export default function CommunityOperationsPage() {
               <TabsTrigger value="feed">{t("alertFeed")}</TabsTrigger>
 
               <TabsTrigger value="map">{t("liveMap")}</TabsTrigger>
+              <TabsTrigger value="teams">Emergency Teams</TabsTrigger>
+              <TabsTrigger value="dispatch-report">Dispatch Report</TabsTrigger>
             </TabsList>
 
             <TabsContent value="feed" className="space-y-3">
@@ -345,6 +349,10 @@ export default function CommunityOperationsPage() {
                 />
               )}
             </TabsContent>
+
+            <TabsContent value="teams"><EmergencyTeamsPanel /></TabsContent>
+
+            <TabsContent value="dispatch-report"><DispatchReportPanel /></TabsContent>
           </Tabs>
         </div>
 
