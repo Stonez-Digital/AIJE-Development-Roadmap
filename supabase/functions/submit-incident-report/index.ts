@@ -55,7 +55,7 @@ function boundedString(value: unknown, min: number, max: number) {
 
 function parseImageDataUrl(value: unknown) {
   if (typeof value !== "string") return null;
-  const match = value.match(/^data:(image\\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
+  const match = value.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
   if (!match) return null;
   return { contentType: match[1], base64: match[2] };
 }
