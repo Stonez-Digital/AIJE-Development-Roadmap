@@ -212,6 +212,7 @@ Deno.serve(async (request) => {
         delivered++;
         sent = true;
       } catch (error) {
+        failed++;
         await admin.from("incident_notification_deliveries").insert({
           organization_id: incident.organization_id,
           incident_report_id: incident.id,
