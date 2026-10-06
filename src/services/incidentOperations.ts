@@ -157,3 +157,116 @@ export async function fetchOrganizationIncidentAudit(
   if (error) throw error;
   return data ?? [];
 }
+
+export interface ResponseTeamRoster {
+  teamId: string;
+  teamName: string;
+  teamType: string;
+  members: Array<{
+    membershipId: string;
+    userId: string;
+    displayName: string;
+    status: string;
+  }>;
+}
+
+export interface DispatchReportRow {
+  auditId: string;
+  incidentId: string;
+  title: string;
+  category: string;
+  teamName: string | null;
+  status: string;
+  dispatchedAt: string;
+  note: string | null;
+}
+
+export async function fetchResponseTeamRoster(
+  organizationId: string,
+): Promise<ResponseTeamRoster[]> {
+  const { data, error } = await supabase.rpc("get_response_team_roster", {
+    _organization_id: organizationId,
+  });
+  if (error) throw error;
+
+  const grouped = new Map<string, ResponseTeamRoster>();
+  for (const row of data ?? []) {
+    const team = grouped.get(row.team_id) ?? {
+      teamId: row.team_id,
+      teamName: row.team_name,
+      teamType: row.team_type,
+      members: [],
+    };
+    if (row.membership_id) {
+      team.members.push({
+        membershipId: row.membership_id,
+        userId: row.user_id,
+        displayName: row.display_name,
+        status: row.membership_status,
+      });
+    }
+    grouped.set(row.team_id, team);
+  }
+  return [...grouped.values()];
+}
+
+export async function fetchDispatchReport(
+  organizationId: string,
+): Promise<DispatchReportRow[]> {
+  const { data: audits, error: auditError } = await supabase
+    .from("incident_audit_log")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .eq("action", "response.dispatched")
+    .order("created_at", { ascending: false });
+  if (auditError) throw auditError;
+
+  const incidentIds = [
+    ...new Set(
+      (audits ?? [])
+        .map((audit) => audit.incident_report_id ?? audit.incident_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  const { data: incidents, error: incidentError } = incidentIds.length
+    ? await supabase
+        .from("incident_reports")
+        .select("id,title,category,assigned_team_id,status")
+        .in("id", incidentIds)
+    : { data: [], error: null };
+  if (incidentError) throw incidentError;
+
+  const teamIds = [
+    ...new Set(
+      (incidents ?? [])
+        .map((incident) => incident.assigned_team_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  const { data: teams, error: teamError } = teamIds.length
+    ? await supabase.from("teams").select("id,name").in("id", teamIds)
+    : { data: [], error: null };
+  if (teamError) throw teamError;
+
+  const incidentMap = new Map((incidents ?? []).map((incident) => [incident.id, incident]));
+  const teamMap = new Map((teams ?? []).map((team) => [team.id, team.name]));
+
+  return (audits ?? []).map((audit) => {
+    const incidentId = audit.incident_report_id ?? audit.incident_id ?? "";
+    const incident = incidentMap.get(incidentId);
+    const teamId = incident?.assigned_team_id ?? null;
+
+    return {
+      auditId: audit.id,
+      incidentId,
+      title: incident?.title ?? "Incident",
+      category: incident?.category ?? "Unknown",
+      teamName: teamId ? teamMap.get(teamId) ?? null : null,
+      status: incident?.status ?? "dispatched",
+      dispatchedAt: audit.created_at,
+      note: audit.note ?? audit.reason ?? null,
+    };
+  });
+}
