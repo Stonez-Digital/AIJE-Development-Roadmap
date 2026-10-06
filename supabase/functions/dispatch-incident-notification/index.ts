@@ -191,7 +191,9 @@ Deno.serve(async (request) => {
     const whatsapp = contact.whatsapp_enabled
       ? normalizePhone(contact.whatsapp_target ?? "")
       : null;
-    const sms = contact.sms_enabled ? normalizePhone(contact.phone ?? "") : null;
+    const sms = contact.sms_enabled
+      ? normalizePhone(contact.phone ?? "")
+      : null;
 
     let sent = false;
 
