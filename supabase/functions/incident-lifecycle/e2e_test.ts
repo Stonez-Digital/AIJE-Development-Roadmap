@@ -197,10 +197,11 @@ Deno.test(
       const { error: assignmentError } = await client.rpc(
         "assign_incident_team",
         {
-        _incident_id: incident.id,
-        _team_id: team.id,
-        _note: "E2E responder team assignment",
-      });
+          _incident_id: incident.id,
+          _team_id: team.id,
+          _note: "E2E responder team assignment",
+        },
+      );
       if (assignmentError) throw assignmentError;
     } else {
       const teamId = Deno.env.get("E2E_TEAM_ID")?.trim();
@@ -211,29 +212,32 @@ Deno.test(
       const { error: assignmentError } = await client.rpc(
         "assign_incident_team",
         {
-        _incident_id: incident.id,
-        _team_id: teamId,
-        _note: "E2E responder team assignment",
-      });
+          _incident_id: incident.id,
+          _team_id: teamId,
+          _note: "E2E responder team assignment",
+        },
+      );
       if (assignmentError) throw assignmentError;
     }
 
     const { data: verified, error: verifiedError } = await client.rpc(
       "transition_incident",
       {
-      _incident_id: incident.id,
-      _to_status: "verified",
-      _note: "E2E transition to verified",
-    });
+        _incident_id: incident.id,
+        _to_status: "verified",
+        _note: "E2E transition to verified",
+      },
+    );
     if (verifiedError) throw verifiedError;
     assertEquals(verified.status, "verified");
 
     const { data: dispatched, error: dispatchError } = await client.rpc(
       "dispatch_incident",
       {
-      _incident_id: incident.id,
-      _note: "E2E transition to dispatched",
-    });
+        _incident_id: incident.id,
+        _note: "E2E transition to dispatched",
+      },
+    );
     if (dispatchError) throw dispatchError;
     assertEquals(dispatched.status, "dispatched");
 
