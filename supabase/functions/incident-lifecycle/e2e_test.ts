@@ -194,7 +194,9 @@ Deno.test(
         });
       if (teamMembershipError) throw teamMembershipError;
 
-      const { error: assignmentError } = await client.rpc("assign_incident_team", {
+      const { error: assignmentError } = await client.rpc(
+        "assign_incident_team",
+        {
         _incident_id: incident.id,
         _team_id: team.id,
         _note: "E2E responder team assignment",
@@ -202,8 +204,13 @@ Deno.test(
       if (assignmentError) throw assignmentError;
     } else {
       const teamId = Deno.env.get("E2E_TEAM_ID")?.trim();
-      if (!teamId) throw new Error("E2E_TEAM_ID is required when service role is unavailable");
-      const { error: assignmentError } = await client.rpc("assign_incident_team", {
+      if (!teamId)
+        throw new Error(
+          "E2E_TEAM_ID is required when service role is unavailable",
+        );
+      const { error: assignmentError } = await client.rpc(
+        "assign_incident_team",
+        {
         _incident_id: incident.id,
         _team_id: teamId,
         _note: "E2E responder team assignment",
@@ -211,7 +218,9 @@ Deno.test(
       if (assignmentError) throw assignmentError;
     }
 
-    const { data: verified, error: verifiedError } = await client.rpc("transition_incident", {
+    const { data: verified, error: verifiedError } = await client.rpc(
+      "transition_incident",
+      {
       _incident_id: incident.id,
       _to_status: "verified",
       _note: "E2E transition to verified",
@@ -219,7 +228,9 @@ Deno.test(
     if (verifiedError) throw verifiedError;
     assertEquals(verified.status, "verified");
 
-    const { data: dispatched, error: dispatchError } = await client.rpc("dispatch_incident", {
+    const { data: dispatched, error: dispatchError } = await client.rpc(
+      "dispatch_incident",
+      {
       _incident_id: incident.id,
       _note: "E2E transition to dispatched",
     });
