@@ -376,11 +376,11 @@ export default function CommunityOperationsPage() {
               <CardContent className="space-y-5">
                 <p className="text-sm">{selectedLiveIncident.description}</p>
 
-                {selectedLiveIncident.imageUrls.length > 0 && (
+                {(selectedLiveIncident.imageUrls?.length ?? 0) > 0 && (
                   <div>
                     <h3 className="mb-2 text-sm font-semibold">Report Evidence</h3>
                     <div className="grid grid-cols-2 gap-2">
-                      {selectedLiveIncident.imageUrls.map((url, index) => (
+                      {(selectedLiveIncident.imageUrls ?? []).map((url, index) => (
                         <a
                           key={url}
                           href={url}
