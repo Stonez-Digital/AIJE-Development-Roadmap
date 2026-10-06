@@ -1,9 +1,18 @@
 // types/report.ts
 
 export type EmergencyCategoryId =
-  | "attack" | "kidnapping" | "fire" | "flood" | "medical" | "accident"
-  | "crime" | "building_collapse" | "missing_person" | "road_damage"
-  | "power_outage" | "water_issue";
+  | "attack"
+  | "kidnapping"
+  | "fire"
+  | "flood"
+  | "medical"
+  | "accident"
+  | "crime"
+  | "building_collapse"
+  | "missing_person"
+  | "road_damage"
+  | "power_outage"
+  | "water_issue";
 
 export type SyncStatus = "pending" | "syncing" | "synced" | "failed";
 
