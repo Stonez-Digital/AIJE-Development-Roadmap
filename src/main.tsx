@@ -2,6 +2,8 @@ import { createRoot, type Root } from "react-dom/client";
 import "./index.css";
 import { AppErrorBoundary, StartupError } from "@/components/AppFallback";
 
+// Keep this entrypoint in the Cloudflare native Git deployment path so
+// production configuration changes in .env.production trigger a fresh build.
 const container = document.getElementById("root");
 
 if (!container) {
