@@ -69,7 +69,8 @@ export function useIncidents(): UseIncidentsResult {
         const incident = mapIncidentReport(row);
         return {
           ...incident,
-          imageUrls: evidenceUrls[row.id] ?? [],
+          imageUrls: evidenceUrls[row.id]?.imageUrls ?? [],
+          videoUrls: evidenceUrls[row.id]?.videoUrls ?? [],
           timeline: [
             ...incident.timeline,
             ...auditRows
