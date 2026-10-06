@@ -260,7 +260,7 @@ Deno.test(
     if (auditError) throw auditError;
     assertEquals(
       audit?.map((row) => row.to_status),
-      ["verified", "dispatched", "acknowledged", "responding", "resolved"],
+      ["pending", "verified", "dispatched", "acknowledged", "responding", "resolved"],
     );
     assertEquals(
       audit?.every((row) => row.organization_id === fixture.organizationId),
