@@ -80,7 +80,7 @@ export default function SafeBenueCommunityWatch() {
       setTitle("");
       setDescription("");
       setWard("");
-      toast({ title: "Early warning posted", description: "Neighbours are being notified in real time." });
+      toast({ title: "Community warning submitted", description: "The signal is visible to the community. Confirmations help establish whether it reflects a real local event." });
     } catch (submitError) {
       toast({
         title: "Could not post warning",
@@ -107,7 +107,7 @@ export default function SafeBenueCommunityWatch() {
   return (
     <SafeBenueLayout
       title="Community Watch"
-      description="Community-driven early warning feed. Neighbours post local signals, confirm what they can see, and everyone gets the update live."
+      description="Community-driven early warning feed. Reports remain community signals until people confirm what they can see; operational verification stays with authorized AIJE operators."
     >
       <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
         <Card className="border-border bg-card">
@@ -189,7 +189,7 @@ export default function SafeBenueCommunityWatch() {
               </div>
               <Button type="submit" className="w-full" disabled={submitting}>
                 {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Broadcast to community
+                Submit community warning
               </Button>
               {!userId ? (
                 <p className="text-xs text-muted-foreground">
@@ -229,7 +229,7 @@ export default function SafeBenueCommunityWatch() {
               </p>
             ) : visible.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No {filter === "active" ? "active " : ""}warnings yet — community reports appear here instantly.
+                No {filter === "active" ? "active " : ""}community warnings yet — new signals appear here in real time.
               </p>
             ) : (
               <div className="space-y-3">
