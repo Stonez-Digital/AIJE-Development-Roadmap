@@ -33,7 +33,9 @@ async function adminStorageCleanup(paths: string[]) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceKey) return;
-  const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+  const admin = createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false },
+  });
   await admin.storage.from("incident-evidence").remove(paths);
 }
 
@@ -54,7 +56,9 @@ function boundedString(value: unknown, min: number, max: number) {
 
 function parseImageDataUrl(value: unknown) {
   if (typeof value !== "string") return null;
-  const match = value.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
+  const match = value.match(
+    /^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/,
+  );
   if (!match) return null;
   return { contentType: match[1], base64: match[2] };
 }
@@ -73,7 +77,10 @@ function extensionForContentType(contentType: string) {
 }
 
 function decodedBase64Size(base64: string) {
-  return Math.floor((base64.length * 3) / 4) - (base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0);
+  return (
+    Math.floor((base64.length * 3) / 4) -
+    (base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0)
+  );
 }
 
 async function sha256(value: string) {
@@ -158,7 +165,11 @@ Deno.serve(async (request) => {
         : new Date().toISOString();
     const contact = boundedString(payload.contact, 0, 100);
     const address = boundedString(payload.location?.address, 0, 300);
-    const manualLocation = boundedString(payload.location?.manualEntry, 0, 300);
+    const manualLocation = boundedString(
+      payload.location?.manualEntry,
+      0,
+      300,
+    );
     const latitude =
       typeof payload.location?.lat === "number" &&
       payload.location.lat >= -90 &&
@@ -172,7 +183,9 @@ Deno.serve(async (request) => {
         ? payload.location.lng
         : null;
 
-    const submittedImages = Array.isArray(payload.images) ? payload.images.slice(0, 5) : [];
+    const submittedImages = Array.isArray(payload.images)
+      ? payload.images.slice(0, 5)
+      : [];
     const imageUploads = submittedImages.map((image) => {
       const parsed = parseImageDataUrl(image?.dataUrl);
       if (!parsed) throw new Error("Invalid incident evidence image");
@@ -182,13 +195,17 @@ Deno.serve(async (request) => {
       }
       return {
         id: boundedString(image?.id, 8, 100) ?? crypto.randomUUID(),
-        fileName: boundedString(image?.fileName, 1, 255) ?? "evidence",
+        fileName:
+          boundedString(image?.fileName, 1, 255) ?? "evidence",
         contentType: parsed.contentType,
         base64: parsed.base64,
         sizeBytes,
       };
     });
-    const totalImageBytes = imageUploads.reduce((total, image) => total + image.sizeBytes, 0);
+    const totalImageBytes = imageUploads.reduce(
+      (total, image) => total + image.sizeBytes,
+      0,
+    );
     if (totalImageBytes > 2_500_000) {
       throw new Error("Incident evidence exceeds the 2.5 MB total limit");
     }
@@ -204,11 +221,15 @@ Deno.serve(async (request) => {
       const storagePath = `${organizationId}/${clientId}/${image.id}.${extensionForContentType(image.contentType)}`;
       const { error: uploadError } = await admin.storage
         .from("incident-evidence")
-        .upload(storagePath, Uint8Array.from(atob(image.base64), (char) => char.charCodeAt(0)), {
-          contentType: image.contentType,
-          cacheControl: "3600",
-          upsert: true,
-        });
+        .upload(
+          storagePath,
+          Uint8Array.from(atob(image.base64), (char) => char.charCodeAt(0)),
+          {
+            contentType: image.contentType,
+            cacheControl: "3600",
+            upsert: true,
+          },
+        );
       if (uploadError) throw uploadError;
       uploadedPaths.push(storagePath);
       evidencePaths.push({
@@ -278,7 +299,8 @@ Deno.serve(async (request) => {
         accepted: true,
         receiptId: clientId,
         reportId: receipt?.report_id ?? null,
-        triageNotificationsCreated: receipt?.triage_notifications_created ?? 0,
+        triageNotificationsCreated:
+          receipt?.triage_notifications_created ?? 0,
         correlationId,
       },
       202,
