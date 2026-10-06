@@ -154,7 +154,9 @@ Deno.serve(async (request) => {
         ?.split(",")[0]
         ?.trim();
       clientHash = await sha256(
-        `${forwardedFor ?? "unknown"}:${request.headers.get("user-agent") ?? "unknown"}`,
+        `${forwardedFor ?? "unknown"}:${
+          request.headers.get("user-agent") ?? "unknown"
+        }`,
       );
     }
 
@@ -217,7 +219,9 @@ Deno.serve(async (request) => {
     }> = [];
 
     for (const image of imageUploads) {
-      const storagePath = `${organizationId}/${clientId}/${image.id}.${extensionForContentType(image.contentType)}`;
+      const storagePath = `${organizationId}/${clientId}/${image.id}.${
+        extensionForContentType(image.contentType)
+      }`;
       const { error: uploadError } = await admin.storage
         .from("incident-evidence")
         .upload(
