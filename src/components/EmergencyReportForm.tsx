@@ -328,13 +328,44 @@ export function EmergencyReportForm({
                 Attach photos or short video clips. Videos are limited to 3 MB each; total evidence is limited to 4 MB.
               </p>
               <div className="space-y-2">
-                <Input
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isProcessingImages || images.length >= 5}
+                    onClick={() => document.getElementById("report-evidence-camera")?.click()}
+                    className="justify-center gap-2"
+                  >
+                    <Video className="h-4 w-4" />
+                    Record Video
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isProcessingImages || images.length >= 5}
+                    onClick={() => document.getElementById("report-evidence-files")?.click()}
+                    className="justify-center gap-2"
+                  >
+                    Add Photos / Videos
+                  </Button>
+                </div>
+                <input
+                  id="report-evidence-camera"
+                  type="file"
+                  accept="video/mp4,video/webm,video/quicktime"
+                  capture="environment"
+                  onChange={handleImageSelect}
+                  disabled={isProcessingImages || images.length >= 5}
+                  className="sr-only"
+                />
+                <input
+                  id="report-evidence-files"
                   type="file"
                   accept="image/*,video/mp4,video/webm,video/quicktime"
-                  capture="environment"
                   multiple
                   onChange={handleImageSelect}
                   disabled={isProcessingImages || images.length >= 5}
+                  className="sr-only"
                 />
                 {isProcessingImages && (
                   <p className="text-xs text-muted-foreground">Preparing evidence…</p>
