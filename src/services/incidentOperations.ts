@@ -91,6 +91,13 @@ export async function dispatchIncident(input: {
     _note: input.note ?? null,
   });
   if (error) throw error;
+
+  // In-app notifications are generated transactionally by the database.
+  // SMS/WhatsApp is best-effort fallback and must never roll back dispatch.
+  await supabase.functions.invoke("dispatch-incident-notification", {
+    body: { incidentId: input.incidentId },
+  });
+
   return data;
 }
 
