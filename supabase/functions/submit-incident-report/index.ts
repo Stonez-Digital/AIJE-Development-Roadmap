@@ -167,11 +167,7 @@ Deno.serve(async (request) => {
         : new Date().toISOString();
     const contact = boundedString(payload.contact, 0, 100);
     const address = boundedString(payload.location?.address, 0, 300);
-    const manualLocation = boundedString(
-      payload.location?.manualEntry,
-      0,
-      300,
-    );
+    const manualLocation = boundedString(payload.location?.manualEntry, 0, 300);
     const latitude =
       typeof payload.location?.lat === "number" &&
       payload.location.lat >= -90 &&
@@ -302,8 +298,7 @@ Deno.serve(async (request) => {
         accepted: true,
         receiptId: clientId,
         reportId: receipt?.report_id ?? null,
-        triageNotificationsCreated:
-          receipt?.triage_notifications_created ?? 0,
+        triageNotificationsCreated: receipt?.triage_notifications_created ?? 0,
         correlationId,
       },
       202,
