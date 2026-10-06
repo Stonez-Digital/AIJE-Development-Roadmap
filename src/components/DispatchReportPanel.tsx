@@ -1,0 +1,12 @@
+import { ClipboardList, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAccess } from "@/features/access/AccessProvider";
+import { fetchDispatchReport, type DispatchReportRow } from "@/services/incidentOperations";
+import { useEffect, useState } from "react";
+const STATUS_LABELS:Record<string,string>={dispatched:"Dispatched",acknowledged:"Acknowledged",responding:"Responding",resolved:"Resolved"};
+export function DispatchReportPanel(){
+ const {activeOrganization,hasPermission}=useAccess(); const [rows,setRows]=useState<DispatchReportRow[]>([]); const [loading,setLoading]=useState(false);
+ useEffect(()=>{if(!activeOrganization||!hasPermission("audit.view"))return;setLoading(true);void fetchDispatchReport(activeOrganization.id).then(setRows).finally(()=>setLoading(false));},[activeOrganization,hasPermission]);
+ if(!activeOrganization||!hasPermission("audit.view"))return null;
+ return <Card><CardHeader><CardTitle className="flex items-center gap-2 text-base"><ClipboardList className="h-4 w-4"/>Dispatch Report</CardTitle><p className="text-xs text-muted-foreground">Immutable dispatch and responder lifecycle records for this organization.</p></CardHeader><CardContent>{loading?<p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin"/>Loading dispatch history…</p>:rows.length===0?<p className="text-sm text-muted-foreground">No dispatches have been recorded yet.</p>:<div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-b text-xs text-muted-foreground"><tr><th className="px-2 py-2">Incident</th><th className="px-2 py-2">Team</th><th className="px-2 py-2">Status</th><th className="px-2 py-2">Dispatched</th><th className="px-2 py-2">Dispatch note</th></tr></thead><tbody>{rows.map(row=><tr key={row.auditId} className="border-b last:border-0"><td className="px-2 py-3"><p className="font-medium">{row.title}</p><p className="text-xs text-muted-foreground">{row.category}</p></td><td className="px-2 py-3">{row.teamName??"Unassigned"}</td><td className="px-2 py-3"><span className="rounded-full border px-2 py-1 text-xs">{STATUS_LABELS[row.status]??row.status}</span></td><td className="px-2 py-3 whitespace-nowrap">{new Date(row.dispatchedAt).toLocaleString()}</td><td className="px-2 py-3 text-xs text-muted-foreground">{row.note??"—"}</td></tr>)}</tbody></table></div>}</CardContent></Card>;
+}
