@@ -5,6 +5,7 @@ import { enrichIncidents } from "@/services/intelligenceEngine";
 import {
   fetchOrganizationIncidents,
   fetchOrganizationIncidentAudit,
+  fetchIncidentEvidenceUrls,
   mapAuditRow,
   mapIncidentReport,
   queueIncidentTransition,
@@ -54,16 +55,21 @@ export function useIncidents(): UseIncidentsResult {
     setDatabaseLoading(true);
     setSourceError(null);
     try {
-      const [rows, auditRows] = await Promise.all([
-        fetchOrganizationIncidents(activeOrganization.id),
+      const rows = await fetchOrganizationIncidents(activeOrganization.id);
+      const [auditRows, evidenceUrls] = await Promise.all([
         hasPermission("audit.view")
           ? fetchOrganizationIncidentAudit(activeOrganization.id)
           : Promise.resolve([]),
+        fetchIncidentEvidenceUrls(
+          activeOrganization.id,
+          rows.map((row) => row.id),
+        ),
       ]);
       const incidents = rows.map((row) => {
         const incident = mapIncidentReport(row);
         return {
           ...incident,
+          imageUrls: evidenceUrls[row.id] ?? [],
           timeline: [
             ...incident.timeline,
             ...auditRows

@@ -270,3 +270,38 @@ export async function fetchDispatchReport(
     };
   });
 }
+
+export async function fetchIncidentEvidenceUrls(
+  organizationId: string,
+  incidentIds: string[],
+): Promise<Record<string, string[]>> {
+  if (incidentIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from("incident_report_images")
+    .select("incident_report_id,storage_path")
+    .eq("organization_id", organizationId)
+    .in("incident_report_id", incidentIds)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+
+  const grouped = new Map<string, string[]>();
+  for (const row of data ?? []) {
+    const paths = grouped.get(row.incident_report_id) ?? [];
+    paths.push(row.storage_path);
+    grouped.set(row.incident_report_id, paths);
+  }
+
+  const result: Record<string, string[]> = {};
+  for (const [incidentId, paths] of grouped) {
+    const { data: signed, error: signedError } = await supabase.storage
+      .from("incident-evidence")
+      .createSignedUrls(paths, 3600);
+    if (signedError) throw signedError;
+    result[incidentId] = (signed ?? [])
+      .map((item) => item.signedUrl)
+      .filter((url): url is string => Boolean(url));
+  }
+  return result;
+}
