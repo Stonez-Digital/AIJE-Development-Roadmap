@@ -414,6 +414,7 @@ export default function CommunityOperationsPage() {
                     incident={selectedLiveIncident}
                     onUpdateStatus={updateIncidentStatus}
                     mutationState={mutationByIncident[selectedLiveIncident.id]}
+                    onSaved={refreshIncidents}
                   />
                 </div>
 
