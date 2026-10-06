@@ -160,9 +160,73 @@ Deno.test(
       .single();
     if (insertError) throw insertError;
 
+    if (serviceRoleKey) {
+      const serviceClient = createClient(url, serviceRoleKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const { data: membership, error: membershipError } = await serviceClient
+        .from("organization_memberships")
+        .select("id")
+        .eq("organization_id", fixture.organizationId)
+        .eq("user_id", session.user.id)
+        .eq("status", "active")
+        .single();
+      if (membershipError || !membership)
+        throw membershipError ?? new Error("E2E operator membership not found");
+
+      const { data: team, error: teamError } = await serviceClient
+        .from("teams")
+        .insert({
+          organization_id: fixture.organizationId,
+          name: `E2E Response Team ${marker}`,
+          team_type: "security",
+        })
+        .select("id")
+        .single();
+      if (teamError || !team)
+        throw teamError ?? new Error("E2E response team creation failed");
+
+      const { error: teamMembershipError } = await serviceClient
+        .from("team_memberships")
+        .insert({
+          team_id: team.id,
+          membership_id: membership.id,
+        });
+      if (teamMembershipError) throw teamMembershipError;
+
+      const { error: assignmentError } = await client.rpc("assign_incident_team", {
+        _incident_id: incident.id,
+        _team_id: team.id,
+        _note: "E2E responder team assignment",
+      });
+      if (assignmentError) throw assignmentError;
+    } else {
+      const teamId = Deno.env.get("E2E_TEAM_ID")?.trim();
+      if (!teamId) throw new Error("E2E_TEAM_ID is required when service role is unavailable");
+      const { error: assignmentError } = await client.rpc("assign_incident_team", {
+        _incident_id: incident.id,
+        _team_id: teamId,
+        _note: "E2E responder team assignment",
+      });
+      if (assignmentError) throw assignmentError;
+    }
+
+    const { data: verified, error: verifiedError } = await client.rpc("transition_incident", {
+      _incident_id: incident.id,
+      _to_status: "verified",
+      _note: "E2E transition to verified",
+    });
+    if (verifiedError) throw verifiedError;
+    assertEquals(verified.status, "verified");
+
+    const { data: dispatched, error: dispatchError } = await client.rpc("dispatch_incident", {
+      _incident_id: incident.id,
+      _note: "E2E transition to dispatched",
+    });
+    if (dispatchError) throw dispatchError;
+    assertEquals(dispatched.status, "dispatched");
+
     for (const status of [
-      "verified",
-      "dispatched",
       "acknowledged",
       "responding",
       "resolved",
