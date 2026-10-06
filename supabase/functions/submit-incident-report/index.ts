@@ -195,8 +195,7 @@ Deno.serve(async (request) => {
       }
       return {
         id: boundedString(image?.id, 8, 100) ?? crypto.randomUUID(),
-        fileName:
-          boundedString(image?.fileName, 1, 255) ?? "evidence",
+        fileName: boundedString(image?.fileName, 1, 255) ?? "evidence",
         contentType: parsed.contentType,
         base64: parsed.base64,
         sizeBytes,
