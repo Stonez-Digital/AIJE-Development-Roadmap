@@ -82,6 +82,25 @@ export async function fetchResponseTeams(
   }));
 }
 
+export async function dispatchIncident(input: {
+  incidentId: string;
+  note?: string;
+}): Promise<IncidentReportRow> {
+  const { data, error } = await supabase.rpc("dispatch_incident", {
+    _incident_id: input.incidentId,
+    _note: input.note ?? null,
+  });
+  if (error) throw error;
+
+  // In-app notifications are generated transactionally by the database.
+  // SMS/WhatsApp is best-effort fallback and must never roll back dispatch.
+  await supabase.functions.invoke("dispatch-incident-notification", {
+    body: { incidentId: input.incidentId },
+  });
+
+  return data;
+}
+
 export async function assignIncidentTeam(input: {
   incidentId: string;
   teamId: string;

@@ -1345,6 +1345,10 @@ export type Database = {
         Args: { _incident_id: string; _note?: string | null; _team_id: string }
         Returns: Database["public"]["Tables"]["incident_reports"]["Row"]
       }
+      dispatch_incident: {
+        Args: { _incident_id: string; _note?: string | null }
+        Returns: Database["public"]["Tables"]["incident_reports"]["Row"]
+      }
       get_incident_actor_names: {
         Args: { _actor_ids: string[]; _organization_id: string }
         Returns: { display_name: string; user_id: string }[]
