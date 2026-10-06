@@ -241,11 +241,7 @@ Deno.test(
     if (dispatchError) throw dispatchError;
     assertEquals(dispatched.status, "dispatched");
 
-    for (const status of [
-      "acknowledged",
-      "responding",
-      "resolved",
-    ] as const) {
+    for (const status of ["acknowledged", "responding", "resolved"] as const) {
       const { data, error } = await client.rpc("transition_incident", {
         _incident_id: incident.id,
         _to_status: status,
