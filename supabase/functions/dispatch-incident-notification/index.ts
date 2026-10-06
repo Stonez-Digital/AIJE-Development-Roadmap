@@ -83,7 +83,8 @@ async function deliver(channel: Channel, to: string, message: string) {
 }
 
 Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (request.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
   const correlationId =
     request.headers.get("x-correlation-id") ?? crypto.randomUUID();
 
@@ -116,8 +117,7 @@ Deno.serve(async (request) => {
     return json({ error: "Invalid JSON body" }, 400, correlationId);
   }
 
-  const incidentId =
-    typeof body.incidentId === "string" ? body.incidentId : "";
+  const incidentId = typeof body.incidentId === "string" ? body.incidentId : "";
   if (!incidentId)
     return json({ error: "incidentId is required" }, 422, correlationId);
 
@@ -137,10 +137,13 @@ Deno.serve(async (request) => {
   if (incidentError || !incident)
     return json({ error: "Incident not found" }, 404, correlationId);
 
-  const { data: allowed } = await userClient.rpc("current_user_has_permission", {
-    _organization_id: incident.organization_id,
-    _permission: "alerts.dispatch",
-  });
+  const { data: allowed } = await userClient.rpc(
+    "current_user_has_permission",
+    {
+      _organization_id: incident.organization_id,
+      _permission: "alerts.dispatch",
+    },
+  );
   if (allowed !== true)
     return json(
       { error: "Alert dispatch permission required" },
@@ -173,16 +176,13 @@ Deno.serve(async (request) => {
 
   const { data: contacts } = await admin
     .from("responder_contacts")
-    .select(
-      "membership_id,phone,whatsapp_target,sms_enabled,whatsapp_enabled",
-    )
+    .select("membership_id,phone,whatsapp_target,sms_enabled,whatsapp_enabled")
     .eq("organization_id", incident.organization_id)
     .in("membership_id", membershipIds);
 
   const location =
     incident.address ?? incident.manual_location ?? "Location not provided";
-  const message =
-    `[AIJE DISPATCH] ${incident.title} — ${incident.category}. Location: ${location}. Open AIJE to acknowledge and respond.`;
+  const message = `[AIJE DISPATCH] ${incident.title} — ${incident.category}. Location: ${location}. Open AIJE to acknowledge and respond.`;
   let delivered = 0;
   let failed = 0;
   let skipped = 0;
@@ -249,8 +249,7 @@ Deno.serve(async (request) => {
           channel: "sms",
           recipient: sms,
           status: "failed",
-          error:
-            error instanceof Error ? error.message : "SMS delivery failed",
+          error: error instanceof Error ? error.message : "SMS delivery failed",
         });
       }
     }
