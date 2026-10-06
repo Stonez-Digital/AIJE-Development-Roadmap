@@ -100,11 +100,11 @@ export function ResponseTracking({
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…
           </>
         ) : (
-          {requiresTeam && !canDispatch
+          requiresTeam && !canDispatch
             ? "Dispatch permission required"
             : requiresTeam && !incident.assignedTeamId
               ? "Assign a response team first"
-              : NEXT_STATUS_LABEL[incident.status]}
+              : NEXT_STATUS_LABEL[incident.status]
         )}
       </Button>
 
