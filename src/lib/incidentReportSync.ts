@@ -5,10 +5,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { enqueue, registerSyncHandler } from "./syncEngine";
-import type {
-  EmergencyReport,
-  IncidentSubmissionResult,
-} from "@/types/report";
+import type { EmergencyReport, IncidentSubmissionResult } from "@/types/report";
 
 export const INCIDENT_REPORT_COLLECTION = "incident_reports";
 

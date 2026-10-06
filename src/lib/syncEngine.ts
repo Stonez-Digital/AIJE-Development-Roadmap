@@ -142,8 +142,10 @@ export async function processQueue(): Promise<void> {
       "by-status",
       "pending",
     );
-    const failedRetryable = (
-      await db.getAllFromIndex("sync_queue", "by-status", "failed")
+    const failedRetryable = await db.getAllFromIndex(
+      "sync_queue",
+      "by-status",
+      "failed",
     );
     const staleSyncing = (
       await db.getAllFromIndex("sync_queue", "by-status", "syncing")

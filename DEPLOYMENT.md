@@ -20,12 +20,12 @@ Configure only the providers enabled for that environment:
 
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 - `INCIDENT_INTAKE_ORGANIZATION_ID`: UUID of the staffed operational organization
-   that receives all citizen reports, regardless of the reporter's personal
-   organization. It must have at least one active
-   member with incident verification, assignment, or response permission. Those
-   members receive in-app notifications; SMS/WhatsApp are not
-   sent automatically at report intake. The intake function fails closed if
-   this is not configured or no triage recipients exist.
+  that receives all citizen reports, regardless of the reporter's personal
+  organization. It must have at least one active
+  member with incident verification, assignment, or response permission. Those
+  members receive in-app notifications; SMS/WhatsApp are not
+  sent automatically at report intake. The intake function fails closed if
+  this is not configured or no triage recipients exist.
 - `PAYSTACK_SECRET_KEY`
 - `ALLOWED_CALLBACK_ORIGINS` as a comma-separated exact origin allowlist for
   every deployed frontend that may start a payment. Include the Cloudflare

@@ -83,12 +83,13 @@ Deno.serve(async (request) => {
       reporterId = data.user?.id ?? null;
     }
 
-    const organizationId = Deno.env
-      .get("INCIDENT_INTAKE_ORGANIZATION_ID")
-      ?.trim() ?? null;
+    const organizationId =
+      Deno.env.get("INCIDENT_INTAKE_ORGANIZATION_ID")?.trim() ?? null;
     if (
       !organizationId ||
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(organizationId)
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        organizationId,
+      )
     ) {
       return json(
         {
@@ -100,24 +101,15 @@ Deno.serve(async (request) => {
       );
     }
 
+    let clientHash: string | null = null;
     if (!reporterId) {
       const forwardedFor = request.headers
         .get("x-forwarded-for")
         ?.split(",")[0]
         ?.trim();
-      const clientFingerprint = await sha256(
+      clientHash = await sha256(
         `${forwardedFor ?? "unknown"}:${request.headers.get("user-agent") ?? "unknown"}`,
       );
-      const { data: allowed, error: limitError } = await admin.rpc(
-        "consume_public_incident_rate_limit",
-        { _client_hash: clientFingerprint },
-      );
-      if (limitError) throw limitError;
-      if (!allowed)
-        return json(
-          { error: "Too many reports. Please try again later.", correlationId },
-          429,
-        );
     }
 
     const occurredAt =
@@ -146,6 +138,7 @@ Deno.serve(async (request) => {
       {
         _organization_id: organizationId,
         _reporter_id: reporterId,
+        _client_hash: clientHash,
         _client_id: clientId,
         _title: title,
         _category: category,
@@ -162,6 +155,12 @@ Deno.serve(async (request) => {
         _occurred_at: occurredAt,
       },
     );
+    if (intakeError?.message.includes("PUBLIC_INCIDENT_RATE_LIMIT")) {
+      return json(
+        { error: "Too many reports. Please try again later.", correlationId },
+        429,
+      );
+    }
     if (intakeError) throw intakeError;
 
     console.log("[incident-intake] accepted", {

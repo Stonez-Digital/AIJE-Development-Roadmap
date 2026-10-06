@@ -19,9 +19,14 @@ CREATE INDEX IF NOT EXISTS incident_reports_unrouted_idx
   ON public.incident_reports (id)
   WHERE organization_id IS NULL;
 
+CREATE INDEX IF NOT EXISTS incident_reports_client_id_idx
+  ON public.incident_reports (client_id)
+  WHERE client_id IS NOT NULL;
+
 CREATE OR REPLACE FUNCTION public.accept_citizen_incident_report(
   _organization_id uuid,
   _reporter_id uuid,
+  _client_hash text,
   _client_id text,
   _title text,
   _category text,
@@ -43,9 +48,14 @@ DECLARE
   v_report public.incident_reports;
   v_recipient_ids uuid[];
   v_recipient_count integer;
+  v_allowed boolean;
   v_is_new boolean := false;
   v_moved public.incident_reports;
 BEGIN
+  -- A client-generated ID is the idempotency key across anonymous/authenticated
+  -- retries. Serialize same-ID submissions even if reporter identity changes.
+  PERFORM pg_advisory_xact_lock(hashtextextended(_client_id, 0));
+
   IF NOT EXISTS (SELECT 1 FROM public.organizations WHERE id = _organization_id) THEN
     RAISE EXCEPTION 'Incident intake organization does not exist';
   END IF;
@@ -68,6 +78,28 @@ BEGIN
   v_recipient_count := COALESCE(cardinality(v_recipient_ids), 0);
   IF v_recipient_count = 0 THEN
     RAISE EXCEPTION 'No active incident triage recipients are configured';
+  END IF;
+
+  SELECT * INTO v_report
+    FROM public.incident_reports
+   WHERE client_id = _client_id
+   ORDER BY created_at
+   LIMIT 1;
+  IF v_report.id IS NOT NULL AND v_report.organization_id IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'report_id', v_report.id,
+      'triage_notifications_created', 0,
+      'organization_id', v_report.organization_id,
+      'created', false
+    );
+  END IF;
+
+  IF _client_hash IS NOT NULL THEN
+    SELECT public.consume_public_incident_rate_limit(_client_hash)
+      INTO v_allowed;
+    IF NOT v_allowed THEN
+      RAISE EXCEPTION 'PUBLIC_INCIDENT_RATE_LIMIT';
+    END IF;
   END IF;
 
   -- Recover reports created before organization routing was enforced.
@@ -123,8 +155,8 @@ BEGIN
   IF NOT v_is_new THEN
     SELECT * INTO v_report
       FROM public.incident_reports
-     WHERE reporter_id IS NOT DISTINCT FROM _reporter_id
-       AND client_id = _client_id
+     WHERE client_id = _client_id
+     ORDER BY created_at
      LIMIT 1;
     IF v_report.id IS NULL THEN
       RAISE EXCEPTION 'Report idempotency conflict could not be resolved';
@@ -167,11 +199,11 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.accept_citizen_incident_report(
-  uuid, uuid, text, text, text, text, text, text, text,
+  uuid, uuid, text, text, text, text, text, text, text, text,
   double precision, double precision, integer, timestamptz
 ) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.accept_citizen_incident_report(
-  uuid, uuid, text, text, text, text, text, text, text,
+  uuid, uuid, text, text, text, text, text, text, text, text,
   double precision, double precision, integer, timestamptz
 ) TO service_role;
 
