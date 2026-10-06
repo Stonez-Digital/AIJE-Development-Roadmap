@@ -9,7 +9,11 @@ const PHONE_PATTERN = /^\+?[0-9]{7,15}$/;
 
 type Channel = "sms" | "whatsapp";
 
-function json(body: Record<string, unknown>, status = 200, correlationId?: string) {
+function json(
+  body: Record<string, unknown>,
+  status = 200,
+  correlationId?: string,
+) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -41,7 +45,8 @@ async function deliver(channel: Channel, to: string, message: string) {
         channel: "generic",
       }),
     });
-    if (!response.ok) throw new Error(`Termii rejected delivery (${response.status})`);
+    if (!response.ok)
+      throw new Error(`Termii rejected delivery (${response.status})`);
     const result = await response.json();
     return { provider: "termii", id: String(result.message_id ?? "") };
   }
@@ -71,7 +76,8 @@ async function deliver(channel: Channel, to: string, message: string) {
       body,
     },
   );
-  if (!response.ok) throw new Error(`Twilio rejected delivery (${response.status})`);
+  if (!response.ok)
+    throw new Error(`Twilio rejected delivery (${response.status})`);
   const result = await response.json();
   return { provider: "twilio", id: String(result.sid ?? "") };
 }
@@ -110,8 +116,10 @@ Deno.serve(async (request) => {
     return json({ error: "Invalid JSON body" }, 400, correlationId);
   }
 
-  const incidentId = typeof body.incidentId === "string" ? body.incidentId : "";
-  if (!incidentId) return json({ error: "incidentId is required" }, 422, correlationId);
+  const incidentId =
+    typeof body.incidentId === "string" ? body.incidentId : "";
+  if (!incidentId)
+    return json({ error: "incidentId is required" }, 422, correlationId);
 
   const userClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -120,7 +128,9 @@ Deno.serve(async (request) => {
 
   const { data: incident, error: incidentError } = await admin
     .from("incident_reports")
-    .select("id,organization_id,title,category,address,manual_location,status,occurred_at")
+    .select(
+      "id,organization_id,title,category,address,manual_location,status,occurred_at",
+    )
     .eq("id", incidentId)
     .maybeSingle();
 
@@ -132,10 +142,18 @@ Deno.serve(async (request) => {
     _permission: "alerts.dispatch",
   });
   if (allowed !== true)
-    return json({ error: "Alert dispatch permission required" }, 403, correlationId);
+    return json(
+      { error: "Alert dispatch permission required" },
+      403,
+      correlationId,
+    );
 
   if (incident.status !== "dispatched")
-    return json({ error: "Incident must be dispatched before fallback notification" }, 409, correlationId);
+    return json(
+      { error: "Incident must be dispatched before fallback notification" },
+      409,
+      correlationId,
+    );
 
   const { data: assignments } = await admin
     .from("responder_assignments")
@@ -143,17 +161,26 @@ Deno.serve(async (request) => {
     .eq("incident_report_id", incident.id)
     .in("status", ["assigned", "acknowledged", "responding"]);
 
-  const membershipIds = [...new Set((assignments ?? []).map((row) => row.membership_id))];
+  const membershipIds = [
+    ...new Set((assignments ?? []).map((row) => row.membership_id)),
+  ];
   if (membershipIds.length === 0)
-    return json({ delivered: 0, failed: 0, skipped: 0, reason: "no_responders" }, 200, correlationId);
+    return json(
+      { delivered: 0, failed: 0, skipped: 0, reason: "no_responders" },
+      200,
+      correlationId,
+    );
 
   const { data: contacts } = await admin
     .from("responder_contacts")
-    .select("membership_id,phone,whatsapp_target,sms_enabled,whatsapp_enabled")
+    .select(
+      "membership_id,phone,whatsapp_target,sms_enabled,whatsapp_enabled",
+    )
     .eq("organization_id", incident.organization_id)
     .in("membership_id", membershipIds);
 
-  const location = incident.address ?? incident.manual_location ?? "Location not provided";
+  const location =
+    incident.address ?? incident.manual_location ?? "Location not provided";
   const message =
     `[AIJE DISPATCH] ${incident.title} — ${incident.category}. Location: ${location}. Open AIJE to acknowledge and respond.`;
   let delivered = 0;
@@ -192,7 +219,8 @@ Deno.serve(async (request) => {
           channel: "whatsapp",
           recipient: whatsapp,
           status: "failed",
-          error: error instanceof Error ? error.message : "WhatsApp delivery failed",
+          error:
+            error instanceof Error ? error.message : "WhatsApp delivery failed",
         });
       }
     }
@@ -221,7 +249,8 @@ Deno.serve(async (request) => {
           channel: "sms",
           recipient: sms,
           status: "failed",
-          error: error instanceof Error ? error.message : "SMS delivery failed",
+          error:
+            error instanceof Error ? error.message : "SMS delivery failed",
         });
       }
     }
