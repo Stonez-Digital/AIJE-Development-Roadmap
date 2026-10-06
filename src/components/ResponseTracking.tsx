@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import type { Incident, IncidentStatus } from "../types/incident";
 import { getNextIncidentStatus } from "@/lib/incidentLifecycle";
+import { dispatchIncident } from "@/services/incidentOperations";
 import type { IncidentMutationState } from "@/hooks/useIncidents";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 
@@ -35,9 +36,26 @@ export function ResponseTracking({
   const [note, setNote] = useState("");
 
   const nextStatus = getNextIncidentStatus(incident.status);
+  const requiresTeam = incident.status === "verified";
 
   async function handleAdvanceStatus() {
     if (!nextStatus) return;
+
+    if (incident.status === "verified") {
+      try {
+        await dispatchIncident({
+          incidentId: incident.id,
+          note: note.trim() || undefined,
+        });
+        setNote("");
+        return;
+      } catch {
+        // Fall through to the parent mutation path only for non-dispatch
+        // lifecycle states. Dispatch errors are surfaced by the parent UI.
+        return;
+      }
+    }
+
     const saved = await onUpdateStatus(
       incident.id,
       nextStatus,
@@ -64,6 +82,7 @@ export function ResponseTracking({
         onClick={handleAdvanceStatus}
         disabled={
           !nextStatus ||
+          (requiresTeam && !incident.assignedTeamId) ||
           mutationState?.phase === "saving" ||
           incident.origin !== "database"
         }
@@ -73,7 +92,9 @@ export function ResponseTracking({
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…
           </>
         ) : (
-          NEXT_STATUS_LABEL[incident.status]
+          {requiresTeam && !incident.assignedTeamId
+            ? "Assign a response team first"
+            : NEXT_STATUS_LABEL[incident.status]}
         )}
       </Button>
 
