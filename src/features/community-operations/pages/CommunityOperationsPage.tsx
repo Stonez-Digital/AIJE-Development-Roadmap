@@ -376,25 +376,17 @@ export default function CommunityOperationsPage() {
               <CardContent className="space-y-5">
                 <p className="text-sm">{selectedLiveIncident.description}</p>
 
-                {(selectedLiveIncident.imageUrls?.length ?? 0) > 0 && (
+                {((selectedLiveIncident.imageUrls?.length ?? 0) + (selectedLiveIncident.videoUrls?.length ?? 0)) > 0 && (
                   <div>
                     <h3 className="mb-2 text-sm font-semibold">Report Evidence</h3>
                     <div className="grid grid-cols-2 gap-2">
                       {(selectedLiveIncident.imageUrls ?? []).map((url, index) => (
-                        <a
-                          key={url}
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block overflow-hidden rounded-lg border bg-muted/20"
-                        >
-                          <img
-                            src={url}
-                            alt={`Evidence image ${index + 1}`}
-                            className="h-36 w-full object-cover transition-transform hover:scale-[1.02]"
-                            loading="lazy"
-                          />
+                        <a key={url} href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border bg-muted/20">
+                          <img src={url} alt={`Evidence image ${index + 1}`} className="h-36 w-full object-cover transition-transform hover:scale-[1.02]" loading="lazy" />
                         </a>
+                      ))}
+                      {(selectedLiveIncident.videoUrls ?? []).map((url, index) => (
+                        <video key={url} src={url} controls playsInline preload="metadata" className="h-36 w-full rounded-lg border bg-muted/20 object-cover" aria-label={`Evidence video ${index + 1}`} />
                       ))}
                     </div>
                   </div>
