@@ -71,13 +71,20 @@ function parseEvidenceDataUrl(value: unknown) {
 
 function extensionForContentType(contentType: string) {
   switch (contentType) {
-    case "image/png": return "png";
-    case "image/webp": return "webp";
-    case "image/gif": return "gif";
-    case "video/mp4": return "mp4";
-    case "video/webm": return "webm";
-    case "video/quicktime": return "mov";
-    default: return "jpg";
+    case "image/png":
+      return "png";
+    case "image/webp":
+      return "webp";
+    case "image/gif":
+      return "gif";
+    case "video/mp4":
+      return "mp4";
+    case "video/webm":
+      return "webm";
+    case "video/quicktime":
+      return "mov";
+    default:
+      return "jpg";
   }
 }
 
