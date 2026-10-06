@@ -20,7 +20,21 @@ interface IncidentPayload {
     lng?: unknown;
     manualEntry?: unknown;
   };
-  images?: unknown[];
+  images?: Array<{
+    id?: unknown;
+    dataUrl?: unknown;
+    fileName?: unknown;
+    sizeBytes?: unknown;
+  }>;
+}
+
+async function adminStorageCleanup(paths: string[]) {
+  if (paths.length === 0) return;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceKey) return;
+  const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+  await admin.storage.from("incident-evidence").remove(paths);
 }
 
 function json(body: unknown, status: number) {
@@ -38,6 +52,31 @@ function boundedString(value: unknown, min: number, max: number) {
     : null;
 }
 
+
+function parseImageDataUrl(value: unknown) {
+  if (typeof value !== "string") return null;
+  const match = value.match(/^data:(image\\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) return null;
+  return { contentType: match[1], base64: match[2] };
+}
+
+function extensionForContentType(contentType: string) {
+  switch (contentType) {
+    case "image/png":
+      return "png";
+    case "image/webp":
+      return "webp";
+    case "image/gif":
+      return "gif";
+    default:
+      return "jpg";
+  }
+}
+
+function decodedBase64Size(base64: string) {
+  return Math.floor((base64.length * 3) / 4) - (base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0);
+}
+
 async function sha256(value: string) {
   const bytes = new TextEncoder().encode(value);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -53,9 +92,10 @@ Deno.serve(async (request) => {
     return json({ error: "Method not allowed" }, 405);
 
   const correlationId = crypto.randomUUID();
+  let uploadedPaths: string[] = [];
   try {
     const contentLength = Number(request.headers.get("content-length") ?? "0");
-    if (contentLength > 32_000)
+    if (contentLength > 4_500_000)
       return json({ error: "Request too large", correlationId }, 413);
 
     const payload = (await request.json()) as IncidentPayload;
@@ -133,6 +173,53 @@ Deno.serve(async (request) => {
         ? payload.location.lng
         : null;
 
+    const submittedImages = Array.isArray(payload.images) ? payload.images.slice(0, 5) : [];
+    const imageUploads = submittedImages.map((image) => {
+      const parsed = parseImageDataUrl(image?.dataUrl);
+      if (!parsed) throw new Error("Invalid incident evidence image");
+      const sizeBytes = decodedBase64Size(parsed.base64);
+      if (sizeBytes <= 0 || sizeBytes > 524288) {
+        throw new Error("Incident evidence image exceeds the 512 KB limit");
+      }
+      return {
+        id: boundedString(image?.id, 8, 100) ?? crypto.randomUUID(),
+        fileName: boundedString(image?.fileName, 1, 255) ?? "evidence",
+        contentType: parsed.contentType,
+        base64: parsed.base64,
+        sizeBytes,
+      };
+    });
+    const totalImageBytes = imageUploads.reduce((total, image) => total + image.sizeBytes, 0);
+    if (totalImageBytes > 2_500_000) {
+      throw new Error("Incident evidence exceeds the 2.5 MB total limit");
+    }
+
+    const evidencePaths: Array<{
+      storagePath: string;
+      fileName: string;
+      contentType: string;
+      sizeBytes: number;
+    }> = [];
+
+    for (const image of imageUploads) {
+      const storagePath = `${organizationId}/${clientId}/${image.id}.${extensionForContentType(image.contentType)}`;
+      const { error: uploadError } = await admin.storage
+        .from("incident-evidence")
+        .upload(storagePath, Uint8Array.from(atob(image.base64), (char) => char.charCodeAt(0)), {
+          contentType: image.contentType,
+          cacheControl: "3600",
+          upsert: true,
+        });
+      if (uploadError) throw uploadError;
+      uploadedPaths.push(storagePath);
+      evidencePaths.push({
+        storagePath,
+        fileName: image.fileName,
+        contentType: image.contentType,
+        sizeBytes: image.sizeBytes,
+      });
+    }
+
     const { data: receipt, error: intakeError } = await admin.rpc(
       "accept_citizen_incident_report",
       {
@@ -163,6 +250,24 @@ Deno.serve(async (request) => {
     }
     if (intakeError) throw intakeError;
 
+    const reportId = receipt?.report_id ?? null;
+    if (reportId && evidencePaths.length > 0) {
+      const { error: evidenceError } = await admin
+        .from("incident_report_images")
+        .upsert(
+          evidencePaths.map((evidence) => ({
+            incident_report_id: reportId,
+            organization_id: organizationId,
+            storage_path: evidence.storagePath,
+            file_name: evidence.fileName,
+            content_type: evidence.contentType,
+            size_bytes: evidence.sizeBytes,
+          })),
+          { onConflict: "storage_path" },
+        );
+      if (evidenceError) throw evidenceError;
+    }
+
     console.log("[incident-intake] accepted", {
       correlationId,
       category,
@@ -180,6 +285,9 @@ Deno.serve(async (request) => {
       202,
     );
   } catch (error) {
+    if (uploadedPaths.length > 0) {
+      await adminStorageCleanup(uploadedPaths).catch(() => undefined);
+    }
     console.error("[incident-intake] failed", {
       correlationId,
       error: String(error),
