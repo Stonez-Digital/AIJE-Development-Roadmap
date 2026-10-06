@@ -1,0 +1,21 @@
+name: Temporary Prettier Debug
+
+on:
+  push:
+    branches: [fix/incident-report-evidence-display]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --write supabase/functions/submit-incident-report/index.ts
+      - run: git diff -- supabase/functions/submit-incident-report/index.ts
