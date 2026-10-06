@@ -37,7 +37,7 @@ export async function submitIncidentReport(
   registerIncidentReportSync();
   const reportForDelivery: EmergencyReport = {
     ...report,
-    images: (report.images ?? []).map((img) => ({ ...img, dataUrl: "" })),
+    images: report.images ?? [],
   };
 
   if (navigator.onLine) {
