@@ -57,7 +57,7 @@ export function SyncStatusPanel() {
 
         {stats.failedCount > 0 && (
           <p className="text-xs text-destructive text-center">
-            Some items failed to sync and will retry automatically. Your data is safe on this device.
+            Some items have not reached the server yet. They will keep retrying automatically; your data remains on this device.
           </p>
         )}
       </CardContent>

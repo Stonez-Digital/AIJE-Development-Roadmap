@@ -1,14 +1,14 @@
 // Offline-safe submission path for citizen incident reports.
 //
-// Reports are queued in IndexedDB (see lib/syncEngine.ts) and pushed to the
-// backend as soon as connectivity and an authenticated session are available.
+// Reports are sent to the configured operational intake and queued in IndexedDB
+// (see lib/syncEngine.ts) when the server cannot confirm receipt.
 
 import { supabase } from "@/integrations/supabase/client";
 import { enqueue, registerSyncHandler } from "./syncEngine";
-import { createNotification } from "./notificationService";
-import type { EmergencyReport } from "@/types/report";
-import { getStoredActiveOrganizationId } from "@/features/access/accessStorage";
-import { APP_PATHS } from "@/features/navigation/navigationConfig";
+import type {
+  EmergencyReport,
+  IncidentSubmissionResult,
+} from "@/types/report";
 
 export const INCIDENT_REPORT_COLLECTION = "incident_reports";
 
@@ -21,64 +21,42 @@ export function registerIncidentReportSync() {
   registerSyncHandler<EmergencyReport>(
     INCIDENT_REPORT_COLLECTION,
     async (report) => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        const { data, error } = await supabase.functions.invoke(
-          "submit-incident-report",
-          { body: report },
-        );
-        if (error) throw error;
-        if (!data || data.accepted !== true) {
-          throw new Error("The public incident endpoint rejected the report");
-        }
-        return;
-      }
-
-      const { error } = await supabase.from("incident_reports").upsert(
-        {
-          reporter_id: user.id,
-          client_id: report.id,
-          title: report.title,
-          category: report.category,
-          description: report.description,
-          contact: report.contact ?? null,
-          address: report.location?.address ?? null,
-          latitude: report.location?.lat ?? null,
-          longitude: report.location?.lng ?? null,
-          manual_location: report.location?.manualEntry ?? null,
-          image_count: report.images?.length ?? 0,
-          occurred_at: report.timestamp,
-          organization_id: getStoredActiveOrganizationId(),
-        },
-        { onConflict: "reporter_id,client_id" },
+      const { data, error } = await supabase.functions.invoke(
+        "submit-incident-report",
+        { body: report },
       );
-
       if (error) throw error;
-
-      await createNotification({
-        category: "incident",
-        priority: "high",
-        title: `Incident report submitted: ${report.title}`,
-        body: `Category: ${report.category}. ${
-          report.location?.address ?? "No address provided"
-        }`,
-        link: APP_PATHS.incidentReport,
-        metadata: { client_id: report.id, category: report.category },
-      });
+      if (!data || data.accepted !== true) {
+        throw new Error("The incident intake endpoint rejected the report");
+      }
     },
   );
 }
 
-/** Queue a citizen report; resolves once it is stored locally. */
-export async function submitIncidentReport(report: EmergencyReport) {
+/** Submit to the server when possible; otherwise persist an offline retry. */
+export async function submitIncidentReport(
+  report: EmergencyReport,
+): Promise<IncidentSubmissionResult> {
   registerIncidentReportSync();
-  // Image data URLs stay on the device: only metadata is synchronised.
-  const { images, ...rest } = report;
-  await enqueue(INCIDENT_REPORT_COLLECTION, {
-    ...rest,
-    images: (images ?? []).map((img) => ({ ...img, dataUrl: "" })),
-  } as EmergencyReport);
+  const reportForDelivery: EmergencyReport = {
+    ...report,
+    images: (report.images ?? []).map((img) => ({ ...img, dataUrl: "" })),
+  };
+
+  if (navigator.onLine) {
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "submit-incident-report",
+        { body: reportForDelivery },
+      );
+      if (!error && data?.accepted === true) {
+        return { status: "received", receiptId: report.id };
+      }
+    } catch {
+      // Persist below; the sync handler will retry with the same idempotency ID.
+    }
+  }
+
+  await enqueue(INCIDENT_REPORT_COLLECTION, reportForDelivery);
+  return { status: "queued", receiptId: report.id };
 }

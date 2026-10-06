@@ -145,6 +145,30 @@ Deno.test(
       true,
     );
 
+    const { data: dispatchNotifications, error: dispatchNotificationError } =
+      await client
+        .from("notifications")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .contains("metadata", {
+          incidentId: incident.id,
+          event: "response_dispatched",
+        });
+    if (dispatchNotificationError) throw dispatchNotificationError;
+    assertEquals((dispatchNotifications?.length ?? 0) > 0, true);
+
+    const { data: resolutionNotifications, error: resolutionNotificationError } =
+      await client
+        .from("notifications")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .contains("metadata", {
+          incidentId: incident.id,
+          event: "incident_resolved",
+        });
+    if (resolutionNotificationError) throw resolutionNotificationError;
+    assertEquals((resolutionNotifications?.length ?? 0) > 0, true);
+
     const { data: crossTenantAudit, error: crossTenantError } = await client
       .from("incident_audit_log")
       .select("id")

@@ -15,7 +15,11 @@ import { reportSchema, type ReportSchemaType } from "../lib/reportSchema";
 import { EMERGENCY_CATEGORIES } from "../config/emergencyCategories";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { filesToReportImages } from "../lib/imageUtils";
-import type { EmergencyReport, ReportImage } from "../types/report";
+import type {
+  EmergencyReport,
+  IncidentSubmissionResult,
+  ReportImage,
+} from "../types/report";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,10 +37,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface EmergencyReportFormProps {
-  // Wired up by the app shell to Samuel's offline storage/sync module.
-  // Should return quickly (it just needs to queue the report) — this
-  // component shows "Saved, will send when connected" once this resolves.
-  onSubmitReport: (report: EmergencyReport) => Promise<void>;
+  onSubmitReport: (
+    report: EmergencyReport,
+  ) => Promise<IncidentSubmissionResult>;
 }
 
 export function EmergencyReportForm({
@@ -47,6 +50,8 @@ export function EmergencyReportForm({
   const [submitState, setSubmitState] = useState<
     "idle" | "submitting" | "saved" | "error"
   >("idle");
+  const [submissionResult, setSubmissionResult] =
+    useState<IncidentSubmissionResult | null>(null);
 
   const geo = useGeolocation();
 
@@ -125,7 +130,8 @@ export function EmergencyReportForm({
     };
 
     try {
-      await onSubmitReport(report);
+      const result = await onSubmitReport(report);
+      setSubmissionResult(result);
       setSubmitState("saved");
       form.reset();
       setImages([]);
@@ -139,12 +145,31 @@ export function EmergencyReportForm({
       <Card className="max-w-md mx-auto">
         <CardContent className="pt-6 text-center space-y-3">
           <div className="text-4xl">✅</div>
-          <h2 className="text-lg font-semibold">Report saved</h2>
+          <h2 className="text-lg font-semibold">
+            {submissionResult?.status === "received"
+              ? "Report received by AIJE intake"
+              : "Report saved on this device — not yet delivered"}
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Your report is stored and will be sent automatically as soon as a
-            connection is available. You don't need to stay on this screen.
+            {submissionResult?.status === "received"
+              ? "The configured operational inbox received it, and active triage members were notified in-app. This is not confirmation that emergency services have been dispatched."
+              : "It will retry when this app is online. Check Sync status and retry if it fails; dispatch has not received it yet."}
           </p>
-          <Button onClick={() => setSubmitState("idle")} className="w-full">
+          {submissionResult?.receiptId && (
+            <p className="break-all font-mono text-xs text-muted-foreground">
+              Reference: {submissionResult.receiptId}
+            </p>
+          )}
+          <p className="text-xs text-destructive">
+            For immediate danger, contact local emergency services directly.
+          </p>
+          <Button
+            onClick={() => {
+              setSubmissionResult(null);
+              setSubmitState("idle");
+            }}
+            className="w-full"
+          >
             Submit another report
           </Button>
         </CardContent>

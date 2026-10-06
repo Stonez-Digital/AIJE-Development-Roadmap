@@ -22,6 +22,7 @@ export type IncidentStatus =
 
 export type IncidentAuditAction =
   | "report.created"
+  | "report.routed"
   | "report.verified"
   | "response.dispatched"
   | "response.acknowledged"

@@ -13,8 +13,8 @@ export default function CitizenIncidentReporting() {
     registerIncidentReportSync();
   }, []);
 
-  async function handleSubmitReport(report: EmergencyReport) {
-    await submitIncidentReport(report);
+  function handleSubmitReport(report: EmergencyReport) {
+    return submitIncidentReport(report);
   }
 
   return (
@@ -29,8 +29,9 @@ export default function CitizenIncidentReporting() {
 
           <p className="mt-2 max-w-3xl text-muted-foreground">
             Report attacks, kidnappings, fires, flooding, medical emergencies,
-            accidents, and other incidents within your community. Reports are
-            saved on your device and sent automatically when you are online.
+            accidents, and other incidents within your community. Online reports
+            are sent to the configured incident intake organization; offline
+            reports remain on this device until delivery can be confirmed.
           </p>
         </div>
 

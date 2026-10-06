@@ -75,23 +75,50 @@ Deno.serve(async (request) => {
       auth: { persistSession: false },
     });
 
-    const forwardedFor = request.headers
-      .get("x-forwarded-for")
-      ?.split(",")[0]
-      ?.trim();
-    const clientFingerprint = await sha256(
-      `${forwardedFor ?? "unknown"}:${request.headers.get("user-agent") ?? "unknown"}`,
-    );
-    const { data: allowed, error: limitError } = await admin.rpc(
-      "consume_public_incident_rate_limit",
-      { _client_hash: clientFingerprint },
-    );
-    if (limitError) throw limitError;
-    if (!allowed)
+    const authorization = request.headers.get("authorization") ?? "";
+    const accessToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+    let reporterId: string | null = null;
+    if (accessToken) {
+      const { data } = await admin.auth.getUser(accessToken);
+      reporterId = data.user?.id ?? null;
+    }
+
+    const organizationId = Deno.env
+      .get("INCIDENT_INTAKE_ORGANIZATION_ID")
+      ?.trim() ?? null;
+    if (
+      !organizationId ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(organizationId)
+    ) {
       return json(
-        { error: "Too many reports. Please try again later.", correlationId },
-        429,
+        {
+          error: "Incident intake is not configured for this deployment",
+          code: "INCIDENT_INTAKE_NOT_CONFIGURED",
+          correlationId,
+        },
+        503,
       );
+    }
+
+    if (!reporterId) {
+      const forwardedFor = request.headers
+        .get("x-forwarded-for")
+        ?.split(",")[0]
+        ?.trim();
+      const clientFingerprint = await sha256(
+        `${forwardedFor ?? "unknown"}:${request.headers.get("user-agent") ?? "unknown"}`,
+      );
+      const { data: allowed, error: limitError } = await admin.rpc(
+        "consume_public_incident_rate_limit",
+        { _client_hash: clientFingerprint },
+      );
+      if (limitError) throw limitError;
+      if (!allowed)
+        return json(
+          { error: "Too many reports. Please try again later.", correlationId },
+          429,
+        );
+    }
 
     const occurredAt =
       typeof payload.timestamp === "string" &&
@@ -114,40 +141,47 @@ Deno.serve(async (request) => {
         ? payload.location.lng
         : null;
 
-    const { data: existing, error: lookupError } = await admin
-      .from("incident_reports")
-      .select("id")
-      .is("reporter_id", null)
-      .eq("client_id", clientId)
-      .maybeSingle();
-    if (lookupError) throw lookupError;
-
-    if (!existing) {
-      const { error } = await admin.from("incident_reports").insert({
-        reporter_id: null,
-        client_id: clientId,
-        title,
-        category,
-        description,
-        contact,
-        address,
-        manual_location: manualLocation,
-        latitude,
-        longitude,
-        image_count: Math.min(
+    const { data: receipt, error: intakeError } = await admin.rpc(
+      "accept_citizen_incident_report",
+      {
+        _organization_id: organizationId,
+        _reporter_id: reporterId,
+        _client_id: clientId,
+        _title: title,
+        _category: category,
+        _description: description,
+        _contact: contact,
+        _address: address,
+        _manual_location: manualLocation,
+        _latitude: latitude,
+        _longitude: longitude,
+        _image_count: Math.min(
           Array.isArray(payload.images) ? payload.images.length : 0,
           5,
         ),
-        status: "pending",
-        occurred_at: occurredAt,
-      });
-      if (error && error.code !== "23505") throw error;
-    }
+        _occurred_at: occurredAt,
+      },
+    );
+    if (intakeError) throw intakeError;
 
-    console.log("[public-incident] accepted", { correlationId, category });
-    return json({ accepted: true, correlationId }, 202);
+    console.log("[incident-intake] accepted", {
+      correlationId,
+      category,
+      organizationId,
+      reporterId,
+    });
+    return json(
+      {
+        accepted: true,
+        receiptId: clientId,
+        reportId: receipt?.report_id ?? null,
+        triageNotificationsCreated: receipt?.triage_notifications_created ?? 0,
+        correlationId,
+      },
+      202,
+    );
   } catch (error) {
-    console.error("[public-incident] failed", {
+    console.error("[incident-intake] failed", {
       correlationId,
       error: String(error),
     });
