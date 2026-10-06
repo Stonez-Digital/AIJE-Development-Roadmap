@@ -40,7 +40,9 @@ export async function fileToReportImage(file: File): Promise<ReportImage> {
   }
 
   if (!file.type.startsWith("image/")) {
-    throw new Error("Only images and videos can be attached as report evidence.");
+    throw new Error(
+      "Only images and videos can be attached as report evidence.",
+    );
   }
 
   const compressed = await imageCompression(file, COMPRESSION_OPTIONS);
