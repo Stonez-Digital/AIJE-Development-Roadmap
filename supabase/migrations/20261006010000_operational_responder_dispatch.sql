@@ -85,10 +85,12 @@ BEGIN
   RETURNING * INTO incident;
 
   INSERT INTO public.incident_audit_log (
-    organization_id, incident_report_id, actor_id,
+    incident_id, incident_report_id, organization_id, actor_id,
+    previous_status, new_status, reason,
     action, from_status, to_status, note, metadata
   ) VALUES (
-    incident.organization_id, incident.id, auth.uid(),
+    incident.id, incident.id, incident.organization_id, auth.uid(),
+    'verified', 'dispatched', NULLIF(trim(_note), ''),
     'response.dispatched', 'verified', 'dispatched',
     NULLIF(trim(_note), ''),
     jsonb_build_object(
@@ -188,18 +190,19 @@ BEGIN
   END IF;
 
   INSERT INTO public.incident_audit_log(
-    organization_id, incident_report_id, actor_id, action,
+    incident_id, incident_report_id, organization_id, actor_id,
+    previous_status, new_status, reason, action,
     from_status, to_status, note, metadata
   ) VALUES (
-    incident.organization_id, incident.id, auth.uid(), audit_action,
+    incident.id, incident.id, incident.organization_id, auth.uid(),
     CASE _to_status
       WHEN 'verified' THEN 'pending'
       WHEN 'acknowledged' THEN 'dispatched'
       WHEN 'responding' THEN 'acknowledged'
       WHEN 'resolved' THEN 'responding'
     END,
-    _to_status, NULLIF(trim(_note), ''),
-    CASE WHEN actor_membership_id IS NULL THEN '{}'::jsonb
+    _to_status, NULLIF(trim(_note), ''), audit_action,
+    CASE _to_status THEN '{}'::jsonb
          ELSE jsonb_build_object('responder_membership_id', actor_membership_id)
     END
   );
