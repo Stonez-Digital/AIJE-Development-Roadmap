@@ -17,7 +17,8 @@ function fileToDataUrl(file: File): Promise<string> {
       typeof reader.result === "string"
         ? resolve(reader.result)
         : reject(new Error("Unable to read evidence file"));
-    reader.onerror = () => reject(reader.error ?? new Error("Unable to read evidence file"));
+    reader.onerror = () =>
+      reject(reader.error ?? new Error("Unable to read evidence file"));
     reader.readAsDataURL(file);
   });
 }
