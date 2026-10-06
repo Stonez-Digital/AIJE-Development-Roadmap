@@ -98,7 +98,7 @@ Deno.serve(async (request) => {
     return json({ error: "Method not allowed" }, 405);
 
   const correlationId = crypto.randomUUID();
-  let uploadedPaths: string[] = [];
+  const uploadedPaths: string[] = [];
   try {
     const contentLength = Number(request.headers.get("content-length") ?? "0");
     if (contentLength > 4_500_000)
