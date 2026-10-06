@@ -671,6 +671,47 @@ export type Database = {
         Update: { created_at?: string; id?: string; name?: string; organization_id?: string; team_type?: string }
         Relationships: []
       }
+      incident_report_images: {
+        Row: {
+          content_type: string
+          created_at: string
+          file_name: string
+          id: string
+          incident_report_id: string
+          organization_id: string
+          size_bytes: number
+          storage_path: string
+        }
+        Insert: {
+          content_type: string
+          created_at?: string
+          file_name: string
+          id?: string
+          incident_report_id: string
+          organization_id: string
+          size_bytes: number
+          storage_path: string
+        }
+        Update: {
+          content_type?: string
+          created_at?: string
+          file_name?: string
+          id?: string
+          incident_report_id?: string
+          organization_id?: string
+          size_bytes?: number
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_report_images_incident_report_id_fkey"
+            columns: ["incident_report_id"]
+            isOneToOne: false
+            referencedRelation: "incident_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incident_reports: {
         Row: {
           address: string | null
