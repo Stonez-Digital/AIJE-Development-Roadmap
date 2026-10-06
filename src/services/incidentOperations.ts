@@ -274,34 +274,44 @@ export async function fetchDispatchReport(
 export async function fetchIncidentEvidenceUrls(
   organizationId: string,
   incidentIds: string[],
-): Promise<Record<string, string[]>> {
+): Promise<Record<string, { imageUrls: string[]; videoUrls: string[] }>> {
   if (incidentIds.length === 0) return {};
 
   const { data, error } = await supabase
     .from("incident_report_images")
-    .select("incident_report_id,storage_path")
+    .select("incident_report_id,storage_path,content_type")
     .eq("organization_id", organizationId)
     .in("incident_report_id", incidentIds)
     .order("created_at", { ascending: true });
 
   if (error) throw error;
 
-  const grouped = new Map<string, string[]>();
+  const grouped = new Map<string, { paths: string[]; types: string[] }>();
   for (const row of data ?? []) {
-    const paths = grouped.get(row.incident_report_id) ?? [];
-    paths.push(row.storage_path);
-    grouped.set(row.incident_report_id, paths);
+    const current = grouped.get(row.incident_report_id) ?? { paths: [], types: [] };
+    current.paths.push(row.storage_path);
+    current.types.push(row.content_type);
+    grouped.set(row.incident_report_id, current);
   }
 
-  const result: Record<string, string[]> = {};
-  for (const [incidentId, paths] of grouped) {
+  const result: Record<string, { imageUrls: string[]; videoUrls: string[] }> = {};
+  for (const [incidentId, evidence] of grouped) {
     const { data: signed, error: signedError } = await supabase.storage
       .from("incident-evidence")
-      .createSignedUrls(paths, 3600);
+      .createSignedUrls(evidence.paths, 3600);
     if (signedError) throw signedError;
-    result[incidentId] = (signed ?? [])
-      .map((item) => item.signedUrl)
-      .filter((url): url is string => Boolean(url));
+
+    const media = (signed ?? [])
+      .map((item, index) => ({
+        url: item.signedUrl,
+        type: evidence.types[index] ?? "",
+      }))
+      .filter((item): item is { url: string; type: string } => Boolean(item.url));
+
+    result[incidentId] = {
+      imageUrls: media.filter((item) => item.type.startsWith("image/")).map((item) => item.url),
+      videoUrls: media.filter((item) => item.type.startsWith("video/")).map((item) => item.url),
+    };
   }
   return result;
 }
