@@ -59,3 +59,9 @@ GRANT SELECT ON public.responder_contacts TO authenticated;
 GRANT ALL ON public.responder_contacts TO service_role;
 GRANT SELECT ON public.incident_notification_deliveries TO authenticated;
 GRANT ALL ON public.incident_notification_deliveries TO service_role;
+
+
+DROP TRIGGER IF EXISTS responder_contacts_updated_at ON public.responder_contacts;
+CREATE TRIGGER responder_contacts_updated_at
+  BEFORE UPDATE ON public.responder_contacts
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
