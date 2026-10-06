@@ -51,6 +51,11 @@ export interface EmergencyReport {
   syncStatus: SyncStatus;
 }
 
+export interface IncidentSubmissionResult {
+  status: "received" | "queued";
+  receiptId: string;
+}
+
 export interface EmergencyReportFormValues {
   title: string;
   category: EmergencyCategoryId;

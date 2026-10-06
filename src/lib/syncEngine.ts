@@ -21,10 +21,10 @@ import type {
   SyncStatus,
 } from "../types/sync";
 
-const MAX_RETRIES = 5;
 const MAX_QUEUE_ITEMS = 500;
 const SYNC_LEASE_MS = 5 * 60_000;
-const BASE_BACKOFF_MS = 2000; // 2s, 4s, 8s, 16s, 32s
+const BASE_BACKOFF_MS = 2000; // Exponential backoff, capped below.
+const MAX_BACKOFF_MS = 5 * 60_000;
 
 const handlers = new Map<string, SyncHandler>();
 const listeners = new Set<() => void>();
@@ -142,9 +142,11 @@ export async function processQueue(): Promise<void> {
       "by-status",
       "pending",
     );
-    const failedRetryable = (
-      await db.getAllFromIndex("sync_queue", "by-status", "failed")
-    ).filter((i) => i.retryCount < MAX_RETRIES);
+    const failedRetryable = await db.getAllFromIndex(
+      "sync_queue",
+      "by-status",
+      "failed",
+    );
     const staleSyncing = (
       await db.getAllFromIndex("sync_queue", "by-status", "syncing")
     ).filter(
@@ -167,7 +169,10 @@ export async function processQueue(): Promise<void> {
       try {
         // Exponential backoff before retries (not before the first attempt).
         if (item.retryCount > 0) {
-          const delay = BASE_BACKOFF_MS * 2 ** (item.retryCount - 1);
+          const delay = Math.min(
+            BASE_BACKOFF_MS * 2 ** (item.retryCount - 1),
+            MAX_BACKOFF_MS,
+          );
           await new Promise((res) => setTimeout(res, delay));
         }
 
@@ -177,6 +182,11 @@ export async function processQueue(): Promise<void> {
       } catch (err) {
         const message = err instanceof Error ? err.message : "Sync failed";
         await updateItemStatus(item.id, "failed", message);
+        const retryDelay = Math.min(
+          BASE_BACKOFF_MS * 2 ** item.retryCount,
+          MAX_BACKOFF_MS,
+        );
+        window.setTimeout(() => void processQueue(), retryDelay);
       }
     }
   } finally {
