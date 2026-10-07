@@ -32,7 +32,7 @@ jobs:
           SUPABASE_URL="$API_URL" \
           SUPABASE_ANON_KEY="$ANON_KEY" \
           SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
-          deno test --node-modules-dir=auto --allow-net --allow-env \
+          deno test --node-modules-dir=auto --minimum-dependency-age 0 --allow-net --allow-env \
             supabase/functions/incident-lifecycle/e2e_test.ts
       - name: Stop ephemeral Supabase
         if: always()

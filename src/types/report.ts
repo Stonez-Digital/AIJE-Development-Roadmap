@@ -1,12 +1,4 @@
 // types/report.ts
-//
-// This is the CONTRACT between the Citizen Incident Reporting module (Christopher)
-// and the Offline Synchronization module (Samuel).
-//
-// The form's job: produce a valid EmergencyReport object and hand it off.
-// Samuel's job: persist it (IndexedDB), queue it, sync it, retry it, and update syncStatus.
-//
-// Do not add sync/storage logic here — only the shape of the data.
 
 export type EmergencyCategoryId =
   | "attack"
@@ -28,23 +20,28 @@ export interface ReportLocation {
   lat?: number;
   lng?: number;
   accuracyMetres?: number;
-  address?: string; // reverse-geocoded, if available
-  manualEntry?: string; // used when GPS is denied/unavailable
+  address?: string;
+  manualEntry?: string;
 }
+
+export type ReportEvidenceKind = "image" | "video";
 
 export interface ReportImage {
   id: string;
   dataUrl: string;
   fileName: string;
   sizeBytes: number;
+  kind: ReportEvidenceKind;
 }
 
+export type ReportEvidence = ReportImage;
+
 export interface EmergencyReport {
-  id: string; // client-generated UUID (crypto.randomUUID())
+  id: string;
   title: string;
   category: EmergencyCategoryId;
   description: string;
-  timestamp: string; // ISO 8601, auto-generated at submit time
+  timestamp: string;
   location: ReportLocation;
   contact?: string;
   images: ReportImage[];

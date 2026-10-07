@@ -25,6 +25,7 @@ interface IncidentPayload {
     dataUrl?: unknown;
     fileName?: unknown;
     sizeBytes?: unknown;
+    kind?: unknown;
   }>;
 }
 
@@ -54,13 +55,18 @@ function boundedString(value: unknown, min: number, max: number) {
     : null;
 }
 
-function parseImageDataUrl(value: unknown) {
+function parseEvidenceDataUrl(value: unknown) {
   if (typeof value !== "string") return null;
   const match = value.match(
-    /^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/,
+    /^data:(image\/(?:jpeg|png|webp|gif)|video\/(?:mp4|webm|quicktime));base64,([A-Za-z0-9+/=]+)$/,
   );
   if (!match) return null;
-  return { contentType: match[1], base64: match[2] };
+  const contentType = match[1];
+  return {
+    contentType,
+    kind: contentType.startsWith("video/") ? "video" : "image",
+    base64: match[2],
+  };
 }
 
 function extensionForContentType(contentType: string) {
@@ -71,6 +77,12 @@ function extensionForContentType(contentType: string) {
       return "webp";
     case "image/gif":
       return "gif";
+    case "video/mp4":
+      return "mp4";
+    case "video/webm":
+      return "webm";
+    case "video/quicktime":
+      return "mov";
     default:
       return "jpg";
   }
@@ -181,30 +193,36 @@ Deno.serve(async (request) => {
         ? payload.location.lng
         : null;
 
-    const submittedImages = Array.isArray(payload.images)
+    const submittedEvidence = Array.isArray(payload.images)
       ? payload.images.slice(0, 5)
       : [];
-    const imageUploads = submittedImages.map((image) => {
-      const parsed = parseImageDataUrl(image?.dataUrl);
-      if (!parsed) throw new Error("Invalid incident evidence image");
+    const evidenceUploads = submittedEvidence.map((evidence) => {
+      const parsed = parseEvidenceDataUrl(evidence?.dataUrl);
+      if (!parsed) throw new Error("Invalid incident evidence file");
       const sizeBytes = decodedBase64Size(parsed.base64);
-      if (sizeBytes <= 0 || sizeBytes > 524288) {
-        throw new Error("Incident evidence image exceeds the 512 KB limit");
+      const maxBytes = parsed.kind === "video" ? 3 * 1024 * 1024 : 524288;
+      if (sizeBytes <= 0 || sizeBytes > maxBytes) {
+        throw new Error(
+          parsed.kind === "video"
+            ? "Incident evidence video exceeds the 3 MB limit"
+            : "Incident evidence image exceeds the 512 KB limit",
+        );
       }
       return {
-        id: boundedString(image?.id, 8, 100) ?? crypto.randomUUID(),
-        fileName: boundedString(image?.fileName, 1, 255) ?? "evidence",
+        id: boundedString(evidence?.id, 8, 100) ?? crypto.randomUUID(),
+        fileName: boundedString(evidence?.fileName, 1, 255) ?? "evidence",
         contentType: parsed.contentType,
+        kind: parsed.kind,
         base64: parsed.base64,
         sizeBytes,
       };
     });
-    const totalImageBytes = imageUploads.reduce(
-      (total, image) => total + image.sizeBytes,
+    const totalEvidenceBytes = evidenceUploads.reduce(
+      (total, evidence) => total + evidence.sizeBytes,
       0,
     );
-    if (totalImageBytes > 2_500_000) {
-      throw new Error("Incident evidence exceeds the 2.5 MB total limit");
+    if (totalEvidenceBytes > 4 * 1024 * 1024) {
+      throw new Error("Incident evidence exceeds the 4 MB total limit");
     }
 
     const evidencePaths: Array<{
@@ -214,7 +232,7 @@ Deno.serve(async (request) => {
       sizeBytes: number;
     }> = [];
 
-    for (const image of imageUploads) {
+    for (const image of evidenceUploads) {
       const storagePath = `${organizationId}/${clientId}/${image.id}.${extensionForContentType(
         image.contentType,
       )}`;
@@ -254,10 +272,7 @@ Deno.serve(async (request) => {
         _manual_location: manualLocation,
         _latitude: latitude,
         _longitude: longitude,
-        _image_count: Math.min(
-          Array.isArray(payload.images) ? payload.images.length : 0,
-          5,
-        ),
+        _image_count: submittedEvidence.length,
         _occurred_at: occurredAt,
       },
     );

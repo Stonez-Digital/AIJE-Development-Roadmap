@@ -22,6 +22,7 @@ import type {
 } from "../types/report";
 
 import { Button } from "@/components/ui/button";
+import { Video } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -95,13 +96,16 @@ export function EmergencyReportForm({
     if (!e.target.files || e.target.files.length === 0) return;
     setIsProcessingImages(true);
     try {
-      const newImages = await filesToReportImages(e.target.files);
-      const updated = [...images, ...newImages].slice(0, 5);
+      const newEvidence = await filesToReportImages(e.target.files);
+      const updated = [...images, ...newEvidence].slice(0, 5);
       setImages(updated);
       form.setValue("images", updated, { shouldValidate: true });
+    } catch (error) {
+      setSubmitState("error");
+      window.alert(error instanceof Error ? error.message : "Unable to prepare report evidence.");
     } finally {
       setIsProcessingImages(false);
-      e.target.value = ""; // allow re-selecting the same file
+      e.target.value = "";
     }
   }
 
@@ -317,37 +321,71 @@ export function EmergencyReportForm({
               </div>
             </div>
 
-            {/* Images */}
+            {/* Report evidence */}
             <div className="space-y-2">
-              <Label>Photos (optional, up to 5)</Label>
+              <Label>Report evidence (optional, up to 5 items)</Label>
+              <p className="text-xs text-muted-foreground">
+                Attach photos or short video clips. Videos are limited to 3 MB each; total evidence is limited to 4 MB.
+              </p>
               <div className="space-y-2">
-                <Input
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isProcessingImages || images.length >= 5}
+                    onClick={() => document.getElementById("report-evidence-camera")?.click()}
+                    className="justify-center gap-2"
+                  >
+                    <Video className="h-4 w-4" />
+                    Record Video
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isProcessingImages || images.length >= 5}
+                    onClick={() => document.getElementById("report-evidence-files")?.click()}
+                    className="justify-center gap-2"
+                  >
+                    Add Photos / Videos
+                  </Button>
+                </div>
+                <input
+                  id="report-evidence-camera"
                   type="file"
-                  accept="image/*"
+                  accept="video/mp4,video/webm,video/quicktime"
                   capture="environment"
+                  onChange={handleImageSelect}
+                  disabled={isProcessingImages || images.length >= 5}
+                  className="sr-only"
+                />
+                <input
+                  id="report-evidence-files"
+                  type="file"
+                  accept="image/*,video/mp4,video/webm,video/quicktime"
                   multiple
                   onChange={handleImageSelect}
                   disabled={isProcessingImages || images.length >= 5}
+                  className="sr-only"
                 />
                 {isProcessingImages && (
-                  <p className="text-xs text-muted-foreground">
-                    Compressing images…
-                  </p>
+                  <p className="text-xs text-muted-foreground">Preparing evidence…</p>
                 )}
                 {images.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {images.map((img) => (
-                      <div key={img.id} className="relative">
-                        <img
-                          src={img.dataUrl}
-                          alt={img.fileName}
-                          className="h-20 w-full rounded-md object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(img.id)}
-                          className="absolute -top-1 -right-1 rounded-full bg-destructive text-destructive-foreground w-5 h-5 text-xs"
-                        >
+                      <div key={img.id} className="relative overflow-hidden rounded-md border bg-muted/20">
+                        {img.kind === "video" ? (
+                          <div className="relative">
+                            <video src={img.dataUrl} className="h-28 w-full object-cover" muted playsInline controls />
+                            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-background/85 px-2 py-1 text-xs font-medium">
+                              <Video className="h-3 w-3" /> Video
+                            </span>
+                          </div>
+                        ) : (
+                          <img src={img.dataUrl} alt={img.fileName} className="h-28 w-full object-cover" />
+                        )}
+                        <button type="button" onClick={() => removeImage(img.id)}
+                          className="absolute right-1 top-1 rounded-full bg-destructive px-1.5 text-xs text-destructive-foreground">
                           ×
                         </button>
                       </div>

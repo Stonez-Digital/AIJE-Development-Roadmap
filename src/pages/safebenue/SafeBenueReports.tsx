@@ -63,7 +63,7 @@ export default function SafeBenueReports() {
             {incidents.map((incident) => {
               const status = statusLabel[incident.status] ?? incident.status;
               const location = incident.location.manualEntry ?? incident.location.address ?? "Location not specified";
-              const evidenceCount = incident.imageUrls?.length ?? 0;
+              const evidenceCount = (incident.imageUrls?.length ?? 0) + (incident.videoUrls?.length ?? 0);
               return (
                 <Card key={incident.id} className="border-border bg-card">
                   <CardHeader className="pb-3">
@@ -84,6 +84,21 @@ export default function SafeBenueReports() {
                       <Badge variant="secondary">{incident.priority}</Badge>
                       {evidenceCount > 0 ? <Badge variant="secondary">{evidenceCount} evidence item{evidenceCount === 1 ? "" : "s"}</Badge> : null}
                     </div>
+                    {(incident.imageUrls?.length ?? 0) + (incident.videoUrls?.length ?? 0) > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold">Report evidence</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(incident.imageUrls ?? []).map((url, index) => (
+                            <a key={url} href={url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-md border">
+                              <img src={url} alt={`Evidence image ${index + 1}`} className="h-28 w-full object-cover" loading="lazy" />
+                            </a>
+                          ))}
+                          {(incident.videoUrls ?? []).map((url, index) => (
+                            <video key={url} src={url} controls playsInline preload="metadata" className="h-28 w-full rounded-md border object-cover" aria-label={`Evidence video ${index + 1}`} />
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                     {incident.status === "pending" ? (
                       <p className="flex items-center gap-2 text-xs text-warning">
                         <Clock3 className="h-3.5 w-3.5" /> Awaiting authorized verification.

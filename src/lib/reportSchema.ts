@@ -22,17 +22,12 @@ export const reportSchema = z.object({
     .trim()
     .min(3, "Title must be at least 3 characters")
     .max(100, "Title is too long"),
-
-  category: z.enum(CATEGORY_IDS, {
-    error: "Select an emergency category",
-  }),
-
+  category: z.enum(CATEGORY_IDS, { error: "Select an emergency category" }),
   description: z
     .string()
     .trim()
     .min(10, "Please describe what's happening (at least 10 characters)")
     .max(1000, "Description is too long"),
-
   contact: z
     .string()
     .trim()
@@ -41,7 +36,6 @@ export const reportSchema = z.object({
       (val) => !val || /^[0-9+\s-]{7,15}$/.test(val),
       "Enter a valid phone number",
     ),
-
   location: z
     .object({
       lat: z.number().optional(),
@@ -55,7 +49,6 @@ export const reportSchema = z.object({
         (loc.lat !== undefined && loc.lng !== undefined) || !!loc.manualEntry,
       { message: "Provide a location — enable GPS or enter it manually" },
     ),
-
   images: z
     .array(
       z.object({
@@ -63,9 +56,10 @@ export const reportSchema = z.object({
         dataUrl: z.string(),
         fileName: z.string(),
         sizeBytes: z.number(),
+        kind: z.enum(["image", "video"]),
       }),
     )
-    .max(5, "You can attach up to 5 images"),
+    .max(5, "You can attach up to 5 evidence items"),
 });
 
 export type ReportSchemaType = z.infer<typeof reportSchema>;
