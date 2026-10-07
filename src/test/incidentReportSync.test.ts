@@ -31,6 +31,7 @@ const report: EmergencyReport = {
       dataUrl: "data:image/jpeg;base64,private-image-content",
       fileName: "scene.jpg",
       sizeBytes: 42,
+      kind: "image",
     },
   ],
   syncStatus: "pending",
