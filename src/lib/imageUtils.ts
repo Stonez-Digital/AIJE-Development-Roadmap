@@ -8,7 +8,7 @@ const COMPRESSION_OPTIONS = {
   useWebWorker: true,
 };
 
-const MAX_VIDEO_BYTES = 8 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 3 * 1024 * 1024;
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
