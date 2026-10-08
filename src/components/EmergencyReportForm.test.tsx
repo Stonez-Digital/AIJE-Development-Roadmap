@@ -64,6 +64,9 @@ describe("EmergencyReportForm video recording", () => {
   it("starts the recorder when Record Video is clicked", async () => {
     render(<EmergencyReportForm onSubmitReport={vi.fn()} />);
 
+    fireEvent.change(screen.getByPlaceholderText("e.g. Armed men entering Ochekwu village"), { target: { value: "Test incident" } });
+    fireEvent.change(screen.getByPlaceholderText("Describe what you see or know"), { target: { value: "This is a test incident description." } });
+
     const recordButton = screen.getByRole("button", { name: "Record Video" });
     fireEvent.click(recordButton);
 
