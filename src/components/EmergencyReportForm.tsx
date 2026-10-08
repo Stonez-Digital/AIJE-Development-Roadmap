@@ -98,6 +98,10 @@ export function EmergencyReportForm({
     try {
       const newEvidence = await filesToReportImages(e.target.files);
       const updated = [...images, ...newEvidence].slice(0, 5);
+      const totalBytes = updated.reduce((sum, item) => sum + item.sizeBytes, 0);
+      if (totalBytes > 10 * 1024 * 1024) {
+        throw new Error("Report evidence is limited to 10 MB per report.");
+      }
       setImages(updated);
       form.setValue("images", updated, { shouldValidate: true });
     } catch (error) {
@@ -325,7 +329,7 @@ export function EmergencyReportForm({
             <div className="space-y-2">
               <Label>Report evidence (optional, up to 5 items)</Label>
               <p className="text-xs text-muted-foreground">
-                Attach photos or short video clips. Videos are limited to 8 MB each; total evidence is limited to 10 MB.
+                Attach photos or short video clips. Videos are limited to 3 MB each; total evidence is limited to 10 MB.
               </p>
               <div className="space-y-2">
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

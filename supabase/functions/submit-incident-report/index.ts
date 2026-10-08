@@ -200,11 +200,11 @@ Deno.serve(async (request) => {
       const parsed = parseEvidenceDataUrl(evidence?.dataUrl);
       if (!parsed) throw new Error("Invalid incident evidence file");
       const sizeBytes = decodedBase64Size(parsed.base64);
-      const maxBytes = parsed.kind === "video" ? 8 * 1024 * 1024 : 524288;
+      const maxBytes = parsed.kind === "video" ? 3 * 1024 * 1024 : 524288;
       if (sizeBytes <= 0 || sizeBytes > maxBytes) {
         throw new Error(
           parsed.kind === "video"
-            ? "Incident evidence video exceeds the 8 MB limit"
+            ? "Incident evidence video exceeds the 3 MB limit"
             : "Incident evidence image exceeds the 512 KB limit",
         );
       }
