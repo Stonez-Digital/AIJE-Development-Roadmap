@@ -14,7 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { reportSchema, type ReportSchemaType } from "../lib/reportSchema";
 import { EMERGENCY_CATEGORIES } from "../config/emergencyCategories";
 import { useGeolocation } from "../hooks/useGeolocation";
-import { filesToReportImages } from "../lib/imageUtils";
+import { fileToReportImage, filesToReportImages } from "../lib/imageUtils";
 import type {
   EmergencyReport,
   IncidentSubmissionResult,
@@ -48,6 +48,7 @@ export function EmergencyReportForm({
 }: EmergencyReportFormProps) {
   const [images, setImages] = useState<ReportImage[]>([]);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
+  const [isRecordingVideo, setIsRecordingVideo] = useState(false);
   const [submitState, setSubmitState] = useState<
     "idle" | "submitting" | "saved" | "error"
   >("idle");
@@ -110,6 +111,75 @@ export function EmergencyReportForm({
     } finally {
       setIsProcessingImages(false);
       e.target.value = "";
+    }
+  }
+
+  async function recordVideo() {
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      window.alert("Video recording is not supported by this browser. Use Add Photos / Videos instead.");
+      return;
+    }
+    if (images.length >= 5) return;
+
+    setIsRecordingVideo(true);
+    setIsProcessingImages(true);
+
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: true,
+      });
+
+      const preferredMimeTypes = [
+        "video/webm;codecs=vp8,opus",
+        "video/webm",
+        "video/mp4",
+      ];
+      const mimeType =
+        preferredMimeTypes.find((type) => MediaRecorder.isTypeSupported(type)) ?? "";
+
+      const recorder = new MediaRecorder(stream, {
+        ...(mimeType ? { mimeType } : {}),
+        videoBitsPerSecond: 700_000,
+        audioBitsPerSecond: 64_000,
+      });
+
+      const chunks: BlobPart[] = [];
+      const recorded = await new Promise<Blob>((resolve, reject) => {
+        const timeout = window.setTimeout(() => recorder.stop(), 20_000);
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) chunks.push(event.data);
+        };
+        recorder.onerror = () => {
+          window.clearTimeout(timeout);
+          reject(new Error("Unable to record video evidence."));
+        };
+        recorder.onstop = () => {
+          window.clearTimeout(timeout);
+          resolve(new Blob(chunks, { type: recorder.mimeType || "video/webm" }));
+        };
+        recorder.start(250);
+      });
+
+      if (recorded.size > 3 * 1024 * 1024) {
+        throw new Error("The recorded video is still above 3 MB. Please record a shorter clip.");
+      }
+
+      const extension = recorded.type.includes("mp4") ? "mp4" : "webm";
+      const file = new File([recorded], `aije-evidence-${Date.now()}.${extension}`, {
+        type: recorded.type || "video/webm",
+      });
+      const evidence = await fileToReportImage(file);
+      const updated = [...images, evidence].slice(0, 5);
+      setImages(updated);
+      form.setValue("images", updated, { shouldValidate: true });
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Unable to record video evidence.");
+    } finally {
+      stream?.getTracks().forEach((track) => track.stop());
+      setIsRecordingVideo(false);
+      setIsProcessingImages(false);
     }
   }
 
