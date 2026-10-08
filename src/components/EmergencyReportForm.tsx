@@ -47,7 +47,8 @@ export function EmergencyReportForm({
   onSubmitReport,
 }: EmergencyReportFormProps) {
   const [images, setImages] = useState<ReportImage[]>([]);
-  const [isProcessingImages, setIsProcessingImages] = useState(false);\n  const [isRecordingVideo, setIsRecordingVideo] = useState(false);
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
+  const [isRecordingVideo, setIsRecordingVideo] = useState(false);
   const [submitState, setSubmitState] = useState<
     "idle" | "submitting" | "saved" | "error"
   >("idle");
