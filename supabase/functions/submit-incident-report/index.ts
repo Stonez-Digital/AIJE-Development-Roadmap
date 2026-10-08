@@ -113,7 +113,7 @@ Deno.serve(async (request) => {
   const uploadedPaths: string[] = [];
   try {
     const contentLength = Number(request.headers.get("content-length") ?? "0");
-    if (contentLength > 4_500_000)
+    if (contentLength > 14_000_000)
       return json({ error: "Request too large", correlationId }, 413);
 
     const payload = (await request.json()) as IncidentPayload;
@@ -200,11 +200,11 @@ Deno.serve(async (request) => {
       const parsed = parseEvidenceDataUrl(evidence?.dataUrl);
       if (!parsed) throw new Error("Invalid incident evidence file");
       const sizeBytes = decodedBase64Size(parsed.base64);
-      const maxBytes = parsed.kind === "video" ? 3 * 1024 * 1024 : 524288;
+      const maxBytes = parsed.kind === "video" ? 8 * 1024 * 1024 : 524288;
       if (sizeBytes <= 0 || sizeBytes > maxBytes) {
         throw new Error(
           parsed.kind === "video"
-            ? "Incident evidence video exceeds the 3 MB limit"
+            ? "Incident evidence video exceeds the 8 MB limit"
             : "Incident evidence image exceeds the 512 KB limit",
         );
       }
@@ -221,8 +221,8 @@ Deno.serve(async (request) => {
       (total, evidence) => total + evidence.sizeBytes,
       0,
     );
-    if (totalEvidenceBytes > 4 * 1024 * 1024) {
-      throw new Error("Incident evidence exceeds the 4 MB total limit");
+    if (totalEvidenceBytes > 10 * 1024 * 1024) {
+      throw new Error("Incident evidence exceeds the 10 MB total limit");
     }
 
     const evidencePaths: Array<{
