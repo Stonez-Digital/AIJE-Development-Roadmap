@@ -66,6 +66,8 @@ describe("EmergencyReportForm video recording", () => {
 
     fireEvent.change(screen.getByPlaceholderText("e.g. Armed men entering Ochekwu village"), { target: { value: "Test incident" } });
     fireEvent.change(screen.getByPlaceholderText("Describe what you see or know"), { target: { value: "This is a test incident description." } });
+    fireEvent.click(screen.getByRole("button", { name: /Attack/i }));
+    fireEvent.change(screen.getByPlaceholderText("Or type the location (e.g. nearest landmark, village)"), { target: { value: "Otukpo" } });
 
     const recordButton = screen.getByRole("button", { name: "Record Video" });
     fireEvent.click(recordButton);
