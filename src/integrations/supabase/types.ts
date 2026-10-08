@@ -958,12 +958,16 @@ export type Database = {
           description: string
           id: string
           latitude: number | null
+          location_accuracy_m: number | null
           longitude: number | null
+          moderator_note: string | null
           occurred_at: string
           severity: string
           status: string
           title: string
           updated_at: string
+          verified_at: string | null
+          verified_by: string | null
           ward: string | null
         }
         Insert: {
@@ -974,12 +978,16 @@ export type Database = {
           description: string
           id?: string
           latitude?: number | null
+          location_accuracy_m?: number | null
           longitude?: number | null
+          moderator_note?: string | null
           occurred_at?: string
           severity?: string
           status?: string
           title: string
           updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
           ward?: string | null
         }
         Update: {
@@ -990,12 +998,16 @@ export type Database = {
           description?: string
           id?: string
           latitude?: number | null
+          location_accuracy_m?: number | null
           longitude?: number | null
+          moderator_note?: string | null
           occurred_at?: string
           severity?: string
           status?: string
           title?: string
           updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
           ward?: string | null
         }
         Relationships: []
