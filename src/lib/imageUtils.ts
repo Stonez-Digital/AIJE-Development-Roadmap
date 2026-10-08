@@ -8,7 +8,7 @@ const COMPRESSION_OPTIONS = {
   useWebWorker: true,
 };
 
-const MAX_VIDEO_BYTES = 3 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 8 * 1024 * 1024;
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -59,8 +59,8 @@ export async function filesToReportImages(
   const fileArray = Array.from(files);
   const evidence = await Promise.all(fileArray.map(fileToReportImage));
   const totalBytes = evidence.reduce((sum, item) => sum + item.sizeBytes, 0);
-  if (totalBytes > 4 * 1024 * 1024) {
-    throw new Error("Report evidence is limited to 4 MB per report.");
+  if (totalBytes > 10 * 1024 * 1024) {
+    throw new Error("Report evidence is limited to 10 MB per report.");
   }
   return evidence;
 }
