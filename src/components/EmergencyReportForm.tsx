@@ -325,7 +325,7 @@ export function EmergencyReportForm({
             <div className="space-y-2">
               <Label>Report evidence (optional, up to 5 items)</Label>
               <p className="text-xs text-muted-foreground">
-                Attach photos or short video clips. Videos are limited to 3 MB each; total evidence is limited to 4 MB.
+                Attach photos or short video clips. Videos are limited to 8 MB each; total evidence is limited to 10 MB.
               </p>
               <div className="space-y-2">
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
