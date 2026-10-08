@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 
 export type WarningSeverity = "low" | "medium" | "high" | "critical";
 export type WarningStatus = "pending" | "active" | "resolved" | "false_alarm";
@@ -180,7 +181,7 @@ export function useEarlyWarnings() {
     status: WarningStatus,
     moderatorNote?: string,
   ) {
-    const update: Record<string, string | null> = { status };
+    const update: Database["public"]["Tables"]["safebenue_early_warnings"]["Update"] = { status };
     if (isModerator && (status === "active" || status === "false_alarm")) {
       update.verified_by = userId;
       update.verified_at = new Date().toISOString();
