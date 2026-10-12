@@ -51,7 +51,14 @@ async function fetchFeed(baseUrl: string, name: string): Promise<unknown> {
     },
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
-  if (!response.ok) throw new Error(`${name} returned ${response.status}`);
+  if (!response.ok) {
+    console.error("[safebenue-adapter] upstream HTTP error", {
+      source: name,
+      status: response.status,
+      statusText: response.statusText.slice(0, 120),
+    });
+    throw new Error(name + " returned HTTP " + response.status);
+  }
   const declaredLength = Number(response.headers.get("content-length") ?? 0);
   if (declaredLength > MAX_UPSTREAM_BYTES)
     throw new Error(`${name} exceeded the response-size limit`);
