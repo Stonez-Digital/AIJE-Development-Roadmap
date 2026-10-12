@@ -121,7 +121,34 @@ Deno.serve(async (request) => {
     if (contentLength > 14_000_000)
       return json({ error: "Request too large", correlationId }, 413);
 
-    const payload = (await request.json()) as IncidentPayload;
+    phase = "request_body_read";
+    console.log("[incident-intake] body read started", {
+      correlationId,
+      contentLength: Number.isFinite(contentLength) ? contentLength : null,
+    });
+    const rawBody = await request.text();
+    console.log("[incident-intake] body read complete", {
+      correlationId,
+      bodyLength: rawBody.length,
+    });
+
+    phase = "payload_json_parse";
+    let payload: IncidentPayload;
+    try {
+      payload = JSON.parse(rawBody) as IncidentPayload;
+    } catch (error) {
+      console.warn("[incident-intake] invalid JSON body", {
+        correlationId,
+        bodyLength: rawBody.length,
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      });
+      return json({ error: "Invalid JSON request body", correlationId }, 400);
+    }
+    console.log("[incident-intake] payload parsed", {
+      correlationId,
+      hasImages: Array.isArray(payload.images),
+      imageCount: Array.isArray(payload.images) ? payload.images.length : 0,
+    });
     phase = "payload_validation";
     const clientId = boundedString(payload.id, 8, 100);
     const title = boundedString(payload.title, 3, 160);
