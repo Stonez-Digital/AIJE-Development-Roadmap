@@ -94,7 +94,9 @@ async function createUpstreamSnapshot(): Promise<Snapshot> {
   const upstreamUrl = new URL(configuredBaseUrl);
   if (upstreamUrl.protocol !== "https:")
     throw new Error("SafeBenue upstream must use HTTPS");
-  const tokenConfigured = Boolean(Deno.env.get("SAFEBENUE_UPSTREAM_TOKEN")?.trim());
+  const tokenConfigured = Boolean(
+    Deno.env.get("SAFEBENUE_UPSTREAM_TOKEN")?.trim(),
+  );
   console.info("[safebenue-adapter] upstream configuration", {
     host: upstreamUrl.host,
     tokenConfigured,
