@@ -132,7 +132,7 @@ async function createUpstreamSnapshot(): Promise<Snapshot> {
 }
 
 async function fetchInternalSnapshot(request: Request): Promise<Snapshot> {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\\/+$/, "");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/+$/, "");
   // Supabase runtime environments may expose either the legacy anon key or
   // the newer publishable key. Forward the caller JWT so RLS remains enforced.
   const apiKey =
