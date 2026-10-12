@@ -113,7 +113,10 @@ Deno.serve(async (request) => {
   const uploadedPaths: string[] = [];
   let phase = "request_validation";
   try {
-    console.log("[incident-intake] started", { correlationId, method: request.method });
+    console.log("[incident-intake] started", {
+      correlationId,
+      method: request.method,
+    });
     const contentLength = Number(request.headers.get("content-length") ?? "0");
     if (contentLength > 14_000_000)
       return json({ error: "Request too large", correlationId }, 413);
