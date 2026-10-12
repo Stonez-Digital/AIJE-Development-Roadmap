@@ -52,10 +52,29 @@ async function fetchFeed(baseUrl: string, name: string): Promise<unknown> {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!response.ok) {
+    // Inspect only a bounded, non-secret classification of the provider error.
+    // Never log the response body, which may contain account or credential data.
+    let responseBodyHint = "";
+    try {
+      const body = (await response.text()).slice(0, 4096).toLowerCase();
+      if (/(payment|billing|subscription|plan|credit)/.test(body)) {
+        responseBodyHint = "payment_or_plan_required";
+      } else if (/(api.?key|token|credential|unauthorized)/.test(body)) {
+        responseBodyHint = "authentication_required";
+      } else if (/(quota|rate.?limit|too many requests)/.test(body)) {
+        responseBodyHint = "quota_or_rate_limit";
+      } else if (body.length > 0) {
+        responseBodyHint = "provider_error_details_present";
+      }
+    } catch {
+      responseBodyHint = "error_body_unreadable";
+    }
     console.error("[safebenue-adapter] upstream HTTP error", {
       source: name,
       status: response.status,
       statusText: response.statusText.slice(0, 120),
+      tokenConfigured: Boolean(token),
+      responseBodyHint: responseBodyHint || "no_error_details",
     });
     throw new Error(name + " returned HTTP " + response.status);
   }
@@ -75,6 +94,13 @@ async function createUpstreamSnapshot(): Promise<Snapshot> {
   const upstreamUrl = new URL(configuredBaseUrl);
   if (upstreamUrl.protocol !== "https:")
     throw new Error("SafeBenue upstream must use HTTPS");
+  const tokenConfigured = Boolean(
+    Deno.env.get("SAFEBENUE_UPSTREAM_TOKEN")?.trim(),
+  );
+  console.info("[safebenue-adapter] upstream configuration", {
+    host: upstreamUrl.host,
+    tokenConfigured,
+  });
   const baseUrl = upstreamUrl.toString().replace(/\/+$/, "");
   const names = ["incidents", "resources", "missing-persons"] as const;
   const results = await Promise.allSettled(
