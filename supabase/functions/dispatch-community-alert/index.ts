@@ -258,14 +258,23 @@ Deno.serve(async (request) => {
 
   // If an alert references a canonical AIJE incident, verify that it belongs
   // to the selected organization and has reached dispatched status first.
-  if (draft.incidentId && UUID_PATTERN.test(draft.incidentId)) {
+  if (
+    draft.incidentId &&
+    UUID_PATTERN.test(draft.incidentId)
+  ) {
     const { data: linkedIncident, error: linkedIncidentError } = await admin
       .from("incident_reports")
-      .select("id,organization_id,status,title,category,address,manual_location,occurred_at")
+      .select(
+        "id,organization_id,status,title,category,address,manual_location,occurred_at",
+      )
       .eq("id", draft.incidentId)
       .maybeSingle();
     if (linkedIncidentError)
-      return json({ error: "Unable to validate linked incident" }, 500, correlationId);
+      return json(
+        { error: "Unable to validate linked incident" },
+        500,
+        correlationId,
+      );
     if (!linkedIncident && draft.organizationId)
       return json(
         { error: "Linked incident not found in the selected organization" },
@@ -278,7 +287,10 @@ Deno.serve(async (request) => {
         422,
         correlationId,
       );
-    if (linkedIncident && linkedIncident.organization_id !== draft.organizationId)
+    if (
+      linkedIncident &&
+      linkedIncident.organization_id !== draft.organizationId
+    )
       return json(
         { error: "Linked incident organization mismatch" },
         403,
@@ -300,7 +312,9 @@ Deno.serve(async (request) => {
       draft.incidentType = normalizeIncidentType(linkedIncident.category);
       draft.summary = linkedIncident.title;
       draft.location =
-        linkedIncident.address ?? linkedIncident.manual_location ?? draft.location;
+        linkedIncident.address ??
+        linkedIncident.manual_location ??
+        draft.location;
       draft.occurredAt = linkedIncident.occurred_at;
     }
   }
