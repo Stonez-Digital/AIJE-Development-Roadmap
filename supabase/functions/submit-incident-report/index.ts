@@ -111,12 +111,18 @@ Deno.serve(async (request) => {
 
   const correlationId = crypto.randomUUID();
   const uploadedPaths: string[] = [];
+  let phase = "request_validation";
   try {
+    console.log("[incident-intake] started", {
+      correlationId,
+      method: request.method,
+    });
     const contentLength = Number(request.headers.get("content-length") ?? "0");
     if (contentLength > 14_000_000)
       return json({ error: "Request too large", correlationId }, 413);
 
     const payload = (await request.json()) as IncidentPayload;
+    phase = "payload_validation";
     const clientId = boundedString(payload.id, 8, 100);
     const title = boundedString(payload.title, 3, 160);
     const category = boundedString(payload.category, 2, 60);
@@ -125,6 +131,7 @@ Deno.serve(async (request) => {
       return json({ error: "Invalid incident report", correlationId }, 400);
     }
 
+    phase = "service_configuration";
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!supabaseUrl || !serviceKey)
@@ -137,10 +144,12 @@ Deno.serve(async (request) => {
     const accessToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
     let reporterId: string | null = null;
     if (accessToken) {
+      phase = "auth_user_lookup";
       const { data } = await admin.auth.getUser(accessToken);
       reporterId = data.user?.id ?? null;
     }
 
+    phase = "intake_organization_configuration";
     const organizationId =
       Deno.env.get("INCIDENT_INTAKE_ORGANIZATION_ID")?.trim() ?? null;
     if (
@@ -232,6 +241,7 @@ Deno.serve(async (request) => {
       sizeBytes: number;
     }> = [];
 
+    phase = "evidence_storage_upload";
     for (const image of evidenceUploads) {
       const storagePath = `${organizationId}/${clientId}/${image.id}.${extensionForContentType(
         image.contentType,
@@ -257,6 +267,7 @@ Deno.serve(async (request) => {
       });
     }
 
+    phase = "database_intake_rpc";
     const { data: receipt, error: intakeError } = await admin.rpc(
       "accept_citizen_incident_report",
       {
@@ -284,6 +295,7 @@ Deno.serve(async (request) => {
     }
     if (intakeError) throw intakeError;
 
+    phase = "evidence_metadata_persistence";
     const reportId = receipt?.report_id ?? null;
     if (reportId && evidencePaths.length > 0) {
       const { error: evidenceError } = await admin
@@ -302,6 +314,7 @@ Deno.serve(async (request) => {
       if (evidenceError) throw evidenceError;
     }
 
+    phase = "response";
     console.log("[incident-intake] accepted", {
       correlationId,
       category,
@@ -324,7 +337,9 @@ Deno.serve(async (request) => {
     }
     console.error("[incident-intake] failed", {
       correlationId,
-      error: String(error),
+      phase,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      error: String(error).slice(0, 500),
     });
     return json(
       { error: "Unable to submit incident report", correlationId },
