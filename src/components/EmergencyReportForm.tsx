@@ -407,11 +407,11 @@ export function EmergencyReportForm({
                     type="button"
                     variant="outline"
                     disabled={isProcessingImages || images.length >= 5}
-                    onClick={() => document.getElementById("report-evidence-camera")?.click()}
+                    onClick={recordVideo}
                     className="justify-center gap-2"
                   >
                     <Video className="h-4 w-4" />
-                    Record Video
+                    {isRecordingVideo ? "Recording…" : "Record Video"}
                   </Button>
                   <Button
                     type="button"
