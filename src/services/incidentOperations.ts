@@ -17,6 +17,14 @@ export interface ResponseTeam {
   name: string;
   teamType: string;
 }
+
+export interface CommunityWatchGroup {
+  id: string;
+  name: string;
+  community: string;
+  ward: string | null;
+}
+
 interface QueuedTransition {
   incidentId: string;
   status: IncidentStatus;
@@ -82,21 +90,124 @@ export async function fetchResponseTeams(
   }));
 }
 
+export async function fetchCommunityWatchGroups(
+  organizationId: string,
+): Promise<CommunityWatchGroup[]> {
+  const { data, error } = await supabase
+    .from("community_watch_groups")
+    .select("id,name,community,ward")
+    .eq("organization_id", organizationId)
+    .order("community")
+    .order("name");
+  if (error) throw error;
+  return (data ?? []).map((group) => ({
+    id: group.id,
+    name: group.name,
+    community: group.community,
+    ward: group.ward,
+  }));
+}
+
 export async function dispatchIncident(input: {
   incidentId: string;
+  organizationId: string;
+  communityWatchGroupId: string;
   note?: string;
 }): Promise<IncidentReportRow> {
+  if (!input.communityWatchGroupId) {
+    throw new Error("Select the Community Watch group before dispatching.");
+  }
+
   const { data, error } = await supabase.rpc("dispatch_incident", {
     _incident_id: input.incidentId,
     _note: input.note ?? null,
   });
   if (error) throw error;
+  if (data.organization_id !== input.organizationId) {
+    throw new Error(
+      "Incident dispatch was recorded, but the active organization does not match the incident. No Community Watch alert was sent.",
+    );
+  }
 
-  // In-app notifications are generated transactionally by the database.
-  // SMS/WhatsApp is best-effort fallback and must never roll back dispatch.
-  await supabase.functions.invoke("dispatch-incident-notification", {
-    body: { incidentId: input.incidentId },
-  });
+  // Dispatch is persisted first. The linked Community Watch alert is then
+  // created against the same canonical incident and an explicitly selected
+  // group. A notification failure must be visible; it cannot undo dispatch.
+  const location =
+    data.address ??
+    data.manual_location ??
+    (data.latitude != null && data.longitude != null
+      ? `${data.latitude}, ${data.longitude}`
+      : "Location not provided");
+  const category = String(data.category ?? "").toLowerCase();
+  const threatLevel =
+    category.includes("critical") || category.includes("attack")
+      ? "critical"
+      : category.includes("fire") ||
+          category.includes("security") ||
+          category.includes("medical")
+        ? "high"
+        : "medium";
+  const { data: watchAlert, error: watchError } =
+    await supabase.functions.invoke("dispatch-community-alert", {
+      body: {
+        idempotencyKey: input.incidentId,
+        organizationId: input.organizationId,
+        incidentId: input.incidentId,
+        incidentType: data.category,
+        summary: data.title,
+        location,
+        threatLevel,
+        instructions:
+          input.note?.trim() ||
+          "Community Watch: acknowledge receipt, verify conditions safely, and report actions through AIJE. Do not confront suspects or circulate unverified claims.",
+        occurredAt: data.occurred_at,
+        channels: ["sms", "whatsapp"],
+        groupIds: [input.communityWatchGroupId],
+        contactIds: [],
+        language: "en",
+      },
+    });
+
+  // Keep the existing responder fallback, but surface failures instead of
+  // silently treating the entire handoff as complete.
+  const { error: responderError } =
+    await supabase.functions.invoke("dispatch-incident-notification", {
+      body: { incidentId: input.incidentId },
+    });
+
+  if (watchError) {
+    throw new Error(
+      `Incident ${input.incidentId} was dispatched, but the Community Watch alert failed: ${watchError.message}. Refresh the incident and inspect its delivery log before retrying.`,
+    );
+  }
+  const watchResult = watchAlert as
+    | {
+        delivered?: number;
+        failed?: number;
+        duplicate?: boolean;
+        reason?: string;
+      }
+    | null;
+  if (
+    !watchResult ||
+    (watchResult.delivered === 0 &&
+      watchResult.failed === 0 &&
+      !watchResult.duplicate)
+  ) {
+    throw new Error(
+      `Incident ${input.incidentId} was dispatched, but no Community Watch member delivery was confirmed. Check the selected group's members, opt-ins, and SMS/WhatsApp provider configuration.`,
+    );
+  }
+  if ((watchResult.failed ?? 0) > 0) {
+    throw new Error(
+      `Incident ${input.incidentId} was dispatched. Community Watch alert delivery is partial: ${watchResult.delivered ?? 0} sent, ${watchResult.failed} failed. Review delivery records before considering the watch notified.`,
+    );
+  }
+  if (responderError) {
+    throw new Error(
+      `Community Watch alert was accepted, but responder fallback notification failed: ${responderError.message}. Review responder delivery records.`,
+    );
+  }
 
   return data;
 }

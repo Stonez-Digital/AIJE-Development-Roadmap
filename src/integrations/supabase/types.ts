@@ -355,6 +355,7 @@ export type Database = {
           id: string
           leader_name: string | null
           name: string
+          organization_id: string | null
           owner_id: string
           updated_at: string
           ward: string | null
@@ -366,6 +367,7 @@ export type Database = {
           id?: string
           leader_name?: string | null
           name: string
+          organization_id?: string | null
           owner_id: string
           updated_at?: string
           ward?: string | null
@@ -377,6 +379,7 @@ export type Database = {
           id?: string
           leader_name?: string | null
           name?: string
+          organization_id?: string | null
           owner_id?: string
           updated_at?: string
           ward?: string | null
