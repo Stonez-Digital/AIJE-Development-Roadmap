@@ -1,14 +1,25 @@
 // components/ResponseTracking.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAccess } from "@/features/access/AccessProvider";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import type { Incident, IncidentStatus } from "../types/incident";
 import { getNextIncidentStatus } from "@/lib/incidentLifecycle";
-import { dispatchIncident } from "@/services/incidentOperations";
+import {
+  dispatchIncident,
+  fetchCommunityWatchGroups,
+  type CommunityWatchGroup,
+} from "@/services/incidentOperations";
 import type { IncidentMutationState } from "@/hooks/useIncidents";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Users } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ResponseTrackingProps {
   incident: Incident;
@@ -38,7 +49,50 @@ export function ResponseTracking({
 }: ResponseTrackingProps) {
   const [note, setNote] = useState("");
   const [dispatchError, setDispatchError] = useState<string | null>(null);
-  const { hasPermission } = useAccess();
+  const { activeOrganization, hasPermission } = useAccess();
+  const [watchGroups, setWatchGroups] = useState<CommunityWatchGroup[]>([]);
+  const [watchGroupId, setWatchGroupId] = useState("");
+  const [watchGroupsLoading, setWatchGroupsLoading] = useState(false);
+  const [watchGroupsError, setWatchGroupsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeOrganization || !hasPermission("alerts.dispatch")) {
+      setWatchGroups([]);
+      setWatchGroupId("");
+      return;
+    }
+    let cancelled = false;
+    setWatchGroupsLoading(true);
+    setWatchGroupsError(null);
+    void fetchCommunityWatchGroups(activeOrganization.id)
+      .then((groups) => {
+        if (cancelled) return;
+        setWatchGroups(groups);
+        setWatchGroupId((current) =>
+          groups.some((group) => group.id === current) ? current : "",
+        );
+        if (groups.length === 0) {
+          setWatchGroupsError(
+            "No Community Watch group is configured for this organization. Configure a group before dispatching.",
+          );
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setWatchGroupsError(
+            error instanceof Error
+              ? error.message
+              : "Community Watch groups could not be loaded.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setWatchGroupsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganization, hasPermission]);
 
   const nextStatus = getNextIncidentStatus(incident.status);
   const requiresTeam = incident.status === "verified";
@@ -50,13 +104,24 @@ export function ResponseTracking({
     if (incident.status === "verified") {
       setDispatchError(null);
       try {
+        if (!activeOrganization?.id) {
+          throw new Error("Select an organization before dispatching.");
+        }
+        if (!watchGroupId) {
+          throw new Error("Select the Community Watch group before dispatching.");
+        }
         await dispatchIncident({
           incidentId: incident.id,
+          organizationId: activeOrganization.id,
+          communityWatchGroupId: watchGroupId,
           note: note.trim() || undefined,
         });
         setNote("");
         await onSaved?.();
       } catch (error) {
+        // Dispatch may already be persisted even when downstream delivery
+        // fails. Refresh first so the UI cannot invite a duplicate dispatch.
+        await onSaved?.();
         setDispatchError(
           error instanceof Error ? error.message : "Dispatch failed.",
         );
@@ -85,12 +150,58 @@ export function ResponseTracking({
         />
       </div>
 
+      {requiresTeam && canDispatch && (
+        <div className="space-y-2 rounded-md border p-3">
+          <Label className="flex items-center gap-2">
+            <Users className="h-4 w-4" /> Community Watch handoff
+          </Label>
+          <Select
+            value={watchGroupId}
+            onValueChange={setWatchGroupId}
+            disabled={watchGroupsLoading || watchGroups.length === 0}
+          >
+            <SelectTrigger aria-label="Community Watch group">
+              <SelectValue
+                placeholder={
+                  watchGroupsLoading
+                    ? "Loading Community Watch groups…"
+                    : "Select the receiving watch group"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {watchGroups.map((group) => (
+                <SelectItem key={group.id} value={group.id}>
+                  {group.name} · {group.community}
+                  {group.ward ? ` · ${group.ward}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {watchGroupsError && (
+            <p role="alert" className="text-xs text-destructive">
+              {watchGroupsError}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Dispatch sends this incident to the selected group only. Member
+            opt-ins and configured delivery providers determine which channels
+            can be used.
+          </p>
+        </div>
+      )}
+
       <Button
         className="w-full"
         onClick={handleAdvanceStatus}
         disabled={
           !nextStatus ||
-          (requiresTeam && (!incident.assignedTeamId || !canDispatch)) ||
+          (requiresTeam &&
+            (!incident.assignedTeamId ||
+              !canDispatch ||
+              !watchGroupId ||
+              watchGroupsLoading ||
+              watchGroups.length === 0)) ||
           mutationState?.phase === "saving" ||
           incident.origin !== "database"
         }
@@ -104,12 +215,17 @@ export function ResponseTracking({
             ? "Dispatch permission required"
             : requiresTeam && !incident.assignedTeamId
               ? "Assign a response team first"
-              : NEXT_STATUS_LABEL[incident.status]
+              : requiresTeam && !watchGroupId
+                ? "Select Community Watch group"
+                : NEXT_STATUS_LABEL[incident.status]
         )}
       </Button>
 
       {dispatchError && (
-        <div role="alert" className="rounded-md border border-destructive/40 p-2 text-xs text-destructive">
+        <div
+          role="alert"
+          className="rounded-md border border-destructive/40 p-2 text-xs text-destructive"
+        >
           {dispatchError}
         </div>
       )}
