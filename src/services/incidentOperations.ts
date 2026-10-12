@@ -123,6 +123,11 @@ export async function dispatchIncident(input: {
     _note: input.note ?? null,
   });
   if (error) throw error;
+  if (data.organization_id !== input.organizationId) {
+    throw new Error(
+      "Incident dispatch was recorded, but the active organization does not match the incident. No Community Watch alert was sent.",
+    );
+  }
 
   // Dispatch is persisted first. The linked Community Watch alert is then
   // created against the same canonical incident and an explicitly selected
