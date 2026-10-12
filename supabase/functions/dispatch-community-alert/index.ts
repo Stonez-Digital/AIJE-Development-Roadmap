@@ -256,6 +256,31 @@ Deno.serve(async (request) => {
   if (!draft)
     return json({ error: "Invalid alert payload" }, 422, correlationId);
 
+  // If an alert references a canonical AIJE incident, verify that it belongs
+  // to the selected organization and has reached dispatched status first.
+  if (draft.incidentId && UUID_PATTERN.test(draft.incidentId) && draft.organizationId) {
+    const { data: linkedIncident, error: linkedIncidentError } = await admin
+      .from("incident_reports")
+      .select("id,organization_id,status,title,category,address,manual_location,occurred_at")
+      .eq("id", draft.incidentId)
+      .maybeSingle();
+    if (linkedIncidentError)
+      return json({ error: "Unable to validate linked incident" }, 500, correlationId);
+    if (!linkedIncident)
+      return json({ error: "Linked incident not found in the selected organization" }, 404, correlationId);
+    if (linkedIncident.organization_id !== draft.organizationId)
+      return json({ error: "Linked incident organization mismatch" }, 403, correlationId);
+    if (linkedIncident.status !== "dispatched")
+      return json({ error: "Linked incident must be verified and dispatched before watch alerting" }, 409, correlationId);
+
+    // Canonical incident fields are authoritative; do not trust altered client
+    // summary, location, or timestamp for a linked incident alert.
+    draft.incidentType = normalizeIncidentType(linkedIncident.category);
+    draft.summary = linkedIncident.title;
+    draft.location = linkedIncident.address ?? linkedIncident.manual_location ?? draft.location;
+    draft.occurredAt = linkedIncident.occurred_at;
+  }
+
   const minuteAgo = new Date(Date.now() - 60_000).toISOString();
   const { count: recentCount } = await admin
     .from("community_alerts")
