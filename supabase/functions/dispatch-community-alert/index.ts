@@ -258,10 +258,7 @@ Deno.serve(async (request) => {
 
   // If an alert references a canonical AIJE incident, verify that it belongs
   // to the selected organization and has reached dispatched status first.
-  if (
-    draft.incidentId &&
-    UUID_PATTERN.test(draft.incidentId)
-  ) {
+  if (draft.incidentId && UUID_PATTERN.test(draft.incidentId)) {
     const { data: linkedIncident, error: linkedIncidentError } = await admin
       .from("incident_reports")
       .select(
