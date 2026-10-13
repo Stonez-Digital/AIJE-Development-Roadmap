@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      emergency_public_announcements: {
+        Row: {
+          body: string
+          category: string
+          contact_information: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          language_code: string
+          last_known_location: string | null
+          last_seen_at: string | null
+          person_description: string | null
+          person_name: string | null
+          person_photo_url: string | null
+          person_status: string | null
+          priority: string
+          published_at: string | null
+          publishing_authority: string
+          status: string
+          summary: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          category: string
+          contact_information?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          language_code?: string
+          last_known_location?: string | null
+          last_seen_at?: string | null
+          person_description?: string | null
+          person_name?: string | null
+          person_photo_url?: string | null
+          person_status?: string | null
+          priority?: string
+          published_at?: string | null
+          publishing_authority: string
+          status?: string
+          summary: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          contact_information?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          language_code?: string
+          last_known_location?: string | null
+          last_seen_at?: string | null
+          person_description?: string | null
+          person_name?: string | null
+          person_photo_url?: string | null
+          person_status?: string | null
+          priority?: string
+          published_at?: string | null
+          publishing_authority?: string
+          status?: string
+          summary?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       alert_deliveries: {
         Row: {
           alert_id: string
