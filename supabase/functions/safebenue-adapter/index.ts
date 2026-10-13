@@ -133,45 +133,143 @@ async function createUpstreamSnapshot(): Promise<Snapshot> {
 
 async function fetchInternalSnapshot(request: Request): Promise<Snapshot> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/+$/, "");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")?.trim();
+  // Supabase runtime environments may expose either the legacy anon key or
+  // the newer publishable key. Forward the caller JWT so RLS remains enforced.
+  const apiKey =
+    Deno.env.get("SUPABASE_ANON_KEY")?.trim() ||
+    Deno.env.get("SUPABASE_PUBLISHABLE_KEY")?.trim();
   const authorization = request.headers.get("authorization");
-  if (!supabaseUrl || !anonKey || !authorization) {
+  if (!supabaseUrl || !apiKey || !authorization) {
     throw new Error("Authenticated Supabase fallback is not configured");
   }
-  const fields = [
-    "id",
-    "title",
-    "description",
-    "category",
-    "status",
-    "occurred_at",
-    "updated_at",
-    "latitude",
-    "longitude",
-    "address",
-    "manual_location",
-  ].join(",");
-  const response = await fetch(
-    `${supabaseUrl}/rest/v1/incident_reports?select=${fields}&order=occurred_at.desc&limit=500`,
-    {
-      headers: {
-        Accept: "application/json",
-        apikey: anonKey,
-        Authorization: authorization,
-      },
+
+  const headers = {
+    Accept: "application/json",
+    apikey: apiKey,
+    Authorization: authorization,
+  };
+  const fetchRows = async (table: string, query: string) => {
+    const response = await fetch(`${supabaseUrl}/rest/v1/${table}?${query}`, {
+      headers,
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    },
-  );
-  if (!response.ok) {
-    throw new Error(`Supabase incident fallback returned ${response.status}`);
-  }
-  const payload = await response.json();
+    });
+    if (!response.ok) {
+      // Keep provider details out of logs and responses; surface only table/status.
+      throw new Error(`${table} fallback returned ${response.status}`);
+    }
+    const body = await response.text();
+    if (body.length > MAX_UPSTREAM_BYTES) {
+      throw new Error(`${table} fallback exceeded the response-size limit`);
+    }
+    const parsed: unknown = JSON.parse(body);
+    if (!Array.isArray(parsed)) {
+      throw new Error(`${table} fallback returned invalid data`);
+    }
+    return parsed as Record<string, unknown>[];
+  };
+
+  const [incidentRows, resourceRows] = await Promise.all([
+    fetchRows(
+      "incident_reports",
+      new URLSearchParams({
+        select:
+          "id,title,description,category,status,occurred_at,updated_at,latitude,longitude,address,manual_location",
+        order: "occurred_at.desc",
+        limit: "500",
+      }).toString(),
+    ),
+    fetchRows(
+      "emergency_resources",
+      new URLSearchParams({
+        select:
+          "id,name,category,status,verification_status,address,community,lga,lat,lng,phone,available_capacity,updated_at",
+        verification_status: "eq.verified",
+        order: "updated_at.desc",
+        limit: "500",
+      }).toString(),
+    ),
+  ]);
+
+  const mappedIncidents = mapIncidentReportsToSafeBenue(incidentRows);
+  const resources = resourceRows.flatMap((row) => {
+    const id = typeof row.id === "string" ? row.id : "";
+    const name = typeof row.name === "string" ? row.name.trim() : "";
+    const rawCategory =
+      typeof row.category === "string" ? row.category.toLowerCase() : "";
+    const categoryAliases: Record<string, string> = {
+      hospital: "hospital",
+      medical: "hospital",
+      clinic: "hospital",
+      police: "police",
+      security: "police",
+      fire: "fire_service",
+      fire_service: "fire_service",
+      shelter: "shelter",
+      warehouse: "warehouse",
+      ngo: "ngo",
+      community_leader: "community_leader",
+    };
+    const category = categoryAliases[rawCategory];
+    const lat = row.lat;
+    const lng = row.lng;
+    if (
+      !id ||
+      !name ||
+      !category ||
+      typeof lat !== "number" ||
+      typeof lng !== "number" ||
+      typeof row.updated_at !== "string" ||
+      lat < 6.2 ||
+      lat > 8.5 ||
+      lng < 7.2 ||
+      lng > 10.2
+    ) {
+      return [];
+    }
+    const active = String(row.status ?? "").toLowerCase();
+    const capacity = row.available_capacity;
+    const availability =
+      active === "inactive" || active === "closed" || active === "unavailable"
+        ? "unavailable"
+        : typeof capacity === "number" && capacity <= 0
+          ? "limited"
+          : "available";
+    return [
+      {
+        id,
+        name,
+        category,
+        availability,
+        updatedAt: row.updated_at,
+        location: {
+          latitude: lat,
+          longitude: lng,
+          ...(typeof row.address === "string" && row.address.trim()
+            ? { address: row.address.trim() }
+            : {}),
+          ...(typeof row.community === "string" && row.community.trim()
+            ? { community: row.community.trim() }
+            : {}),
+          ...(typeof row.lga === "string" && row.lga.trim()
+            ? { localGovernment: row.lga.trim() }
+            : {}),
+        },
+        ...(typeof row.phone === "string" && row.phone.trim()
+          ? { phone: row.phone.trim() }
+          : {}),
+      },
+    ];
+  });
+
   return {
-    ...mapIncidentReportsToSafeBenue(payload),
+    incidents: mappedIncidents.incidents,
+    resources,
+    // No consent-aware missing-person registry exists; never infer or fabricate records.
+    missingPersons: [],
     synchronizedAt: new Date().toISOString(),
     sources: {
       incidents: "connected",
-      resources: "unavailable",
+      resources: "connected",
       "missing-persons": "unavailable",
     },
   };
