@@ -270,7 +270,7 @@ async function fetchInternalSnapshot(request: Request): Promise<Snapshot> {
     sources: {
       incidents: "connected",
       resources: "connected",
-      "missing-persons": "connected",
+      "missing-persons": "unavailable",
     },
   };
 }
