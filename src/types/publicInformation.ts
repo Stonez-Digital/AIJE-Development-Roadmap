@@ -23,16 +23,24 @@ export const ANNOUNCEMENT_PRIORITIES = [
   { value: "critical", label: "Critical" },
 ] as const;
 
-export type AnnouncementCategory = (typeof ANNOUNCEMENT_CATEGORIES)[number]["value"];
-export type AnnouncementPriority = (typeof ANNOUNCEMENT_PRIORITIES)[number]["value"];
+export type AnnouncementCategory =
+  (typeof ANNOUNCEMENT_CATEGORIES)[number]["value"];
+export type AnnouncementPriority =
+  (typeof ANNOUNCEMENT_PRIORITIES)[number]["value"];
 export type AnnouncementStatus = "draft" | "published" | "archived";
 
 export function categoryLabel(category: string) {
-  return ANNOUNCEMENT_CATEGORIES.find((item) => item.value === category)?.label ?? category;
+  return (
+    ANNOUNCEMENT_CATEGORIES.find((item) => item.value === category)?.label ??
+    category
+  );
 }
 
 export function priorityLabel(priority: string) {
-  return ANNOUNCEMENT_PRIORITIES.find((item) => item.value === priority)?.label ?? priority;
+  return (
+    ANNOUNCEMENT_PRIORITIES.find((item) => item.value === priority)?.label ??
+    priority
+  );
 }
 
 export function formatAnnouncementDate(value: string | null) {
